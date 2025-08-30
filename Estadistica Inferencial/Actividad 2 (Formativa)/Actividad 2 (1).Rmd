@@ -38,6 +38,19 @@ summary(datosCNPost)
 
 ```
 
+# Desarrollo de las hipotesis:
+
+#### Hipótesis nula (H₀): La media del tiempo posterior al entrenamiento es menor o igual a 13.2 segundos.
+##### H₀: μ ≤ 13.2
+
+
+#### Hipótesis alternativa (H₁): La media del tiempo posterior al entrenamiento es mayor a 13.2 segundos.
+##### H₁: μ > 13.2
+
+### Queremos realizar la prueba t de una muestra, pero primero debemos verificar sus condiciones:
+#### 1. Verificamos si las observaciones son independientes entre sí
+#### Dado que los datos fueron recolectados de diferentes atletas, podemos asumir que las observaciones son independientes entre sí.
+#### 2. Verificamos si los datos siguen una distribución normal con gráfico Q-Q
 ```{r,warning=FALSE, error=FALSE}
 
 # 1. Crear el gráfico Q-Q de los datos posteriores
@@ -48,12 +61,7 @@ qqline(datosCNPost, col = "red", lwd = 2)
 
 ```
 
-## Desarrollo de las hipotesis:
-
-#### Hipotesis Nula (H_0): La media del tiempo posterior al entrenamiento es menor o igual a 13.2 segundos.
-
-#### Hipotesis Altenativa (H_1): La media del tiempo posterior al entrenamiento es mayor a 13.2 segundos.
-
+#### Como se cumplen las condiciones para realizar la prueba t de una muestra, procedemos a realizarla
 
 ```{r,warning=FALSE, error=FALSE}
 
@@ -61,49 +69,117 @@ resultado1 = t.test(x = datosCNPost, mu = 13.2, alternative = "greater")
 resultado1
 
 ```
-#### Puesto que p-value en la prueba t-student, es de 0.2003 se puede concluir que no se rechaza la hipotesis nula, ya que no tenemos suficiente evidencia para respaldar la afirmacion de que el tiempo promedio fue mayor a 13.2. 
+#### El valor p obtenido en la prueba t es de 0.2003, que es mayor que el nivel de significancia comúnmente utilizado (α = 0.05). Por lo tanto, no se rechaza la hipótesis nula.
+
+#### No existe evidencia estadística suficiente para respaldar la afirmación del Comité Olímpico de que el tiempo medio posterior al entrenamiento en la zona Centro-Norte es superior a 13.2 segundos. 
 
 #### 2) ¿Sugieren los datos que la mejor marca de los atletas de la zona Centro-Sur se reduce en promedio más de 5,2 segundos tras el entrenamiento?
 
-#### Ya que ya hicimos la verificacion de t-student pasaremos realizar la formulacion de las hipotesis:
 
-#### Hipotesis Nula: H_0: La reduccion promedio en las marcas es <= a 5.2
-#### Hipotesis Alternativa H_1: La reduccion promedio en las marcas es > 5.2
-
-#### Recolectamos los datos y realizamos la prueba t-student:
-
+#### Obtenemos los datos de la zona Centro-Sur:
 ```{r,warning=FALSE, error=FALSE}
-
 datosCS <- filter(datos, Zona == "Centro-Sur")
 datosCS
-
 datosCSPrev <-  datosCS$Previo
 datosCSPrev
+summary(datosCSPrev)
+datosCSPost <-  datosCS$Posterior
+datosCSPost
+summary(datosCSPost)
+```
 
-resultado2 = t.test(x = datosCSPrev, mu = 5.2, alternative = "greater")
-resultado2
+
+### Desarrollo de las hipotesis:
+#### Hipótesis nula (H₀): La reducción promedio en las marcas es menor o igual a 5.2 segundos.
+##### H₀: μ ≤ 5.2
+#### Hipotesis Alternativa H_1: La reduccion promedio en las marcas es > 5.2
+##### H₁: μ > 5.2
+
+### Verificación de condiciones para la prueba t de una muestra:
+#### 1. Verificamos si las observaciones son independientes entre sí
+#### Dado que los datos fueron recolectados de diferentes atletas, podemos asumir que las observaciones son independientes entre sí.
+#### 2. Verificamos si los datos siguen una distribución normal con gráfico Q-Q
+```{r,warning=FALSE, error=FALSE}
+# 1. Crear el gráfico Q-Q de los datos previos
+qqnorm(datosCSPrev, main = "Gráfico Q-Q para Tiempos Previos (Zona Centro-Sur)")
+# 2. Añadir la línea de referencia de normalidad
+qqline(datosCSPrev, col = "red", lwd = 2)
 
 ```
 
-#### Puesto que nuestro p-value fue de 2.2e-16 podemos rechazar la hipotesis nula
+#### Como se cumplen las condiciones para realizar la prueba t de una muestra, procedemos a realizarla
+
+```{r,warning=FALSE, error=FALSE}
+resultado2 = t.test(x = datosCSPrev, mu = 5.2, alternative = "greater")
+resultado2
+```
+
+
+#### El valor p obtenido en la prueba t es de 2.2e-16, que es considerablemente menor que el nivel de significancia comúnmente utilizado (α = 0.05). Por lo tanto, se rechaza la hipótesis nula.
+#### Existe evidencia estadística suficiente para apoyar la afirmación de que la reducción promedio en las marcas de los atletas de la zona Centro-Sur es mayor a 5.2 segundos después del entrenamiento.
 
 
 #### 3) ¿Es posible afirmar que, en promedio, los atletas de la zona Sur superan a los de la zona Centro-Norte por 1,3 segundos después del entrenamiento?
 
+#### Planteamiento de Hipótesis:
+#### Hipótesis nula (H₀): La diferencia en los tiempos promedio posteriores al entrenamiento entre los atletas de la zona Sur y Centro-Norte es menor o igual a 1.3 segundos.
+##### H₀: μSur - μCN ≤ 1.3
+#### Hipótesis alternativa (H₁): La diferencia en los tiempos promedio posteriores al entrenamiento entre los atletas de la zona Sur y Centro-Norte es mayor a 1.3 segundos.
+##### H₁: μSur - μCN > 1.3
+
+
+
+#### Se obtienen los datos de ambas zonas:
 ```{r,warning=FALSE, error=FALSE}
 
-datosCNPost
+# Filtrar datos de ambas zonas
+datos_CN <- subset(datos, Zona == "Centro-Norte")
+datos_Sur <- subset(datos, Zona == "Sur")
 
-datosCSPost <-  datosCS$Posterior
-datosCSPost
+# Obtener tiempos posteriores al entrenamiento
+tiempos_CN <- datos_CN$Posterior
+tiempos_Sur <- datos_Sur$Posterior
 
-resultado3 = t.test(x = datosCSPost, y = datosCNPost, mu = 1.3, alternative = "less")
-resultado3
+# Ver número real de observaciones
+cat("Número de atletas Centro-Norte:", length(tiempos_CN), "\n")
+cat("Número de atletas Sur:", length(tiempos_Sur), "\n")
 
+# Mostrar resumen estadístico
+cat("\nResumen - Zona Centro-Norte:\n")
+summary(tiempos_CN)
+cat("\nResumen - Zona Sur:\n")
+summary(tiempos_Sur)
 
 ```
 
-#### Puesto que nuestro p-value fue de 0.9522
+#### Verificación de condiciones para la prueba t de dos muestras:
+#### 1. Verificamos si las observaciones son independientes entre sí
+#### Dado que los datos fueron recolectados de diferentes atletas en distintas zonas, podemos asumir que las observaciones son independientes entre sí.
+#### 2. Verificamos si los datos siguen una distribución normal con gráfico Q-Q
+```{r,warning=FALSE, error=FALSE}
+# 1. Crear el gráfico Q-Q de los datos posteriores de la zona Centro-Norte
+qqnorm(tiempos_CN, main = "Gráfico Q-Q para Tiempos Posteriores (Zona Centro-Norte)")
+# 2. Añadir la línea de referencia de normalidad
+qqline(tiempos_CN, col = "red", lwd = 2)
+# 3. Crear el gráfico Q-Q de los datos posteriores de la zona Sur
+qqnorm(tiempos_Sur, main = "Gráfico Q-Q para Tiempos Posteriores (Zona Sur)")
+# 4. Añadir la línea de referencia de normalidad
+qqline(tiempos_Sur, col = "red", lwd = 2)
+
+```
+#### Como se cumplen las condiciones para realizar la prueba t de dos muestras, procedemos a realizarla
+```{r,warning=FALSE, error=FALSE}
+resultado3 <- t.test(x = tiempos_Sur, 
+                           y = tiempos_CN, 
+                           mu = 1.3, 
+                           alternative = "less",
+                           conf.level = 0.95)
+resultado3
+```
+
+#### El valor p obtenido en la prueba t es de 1, que es mayor que el nivel de significancia comúnmente utilizado (α = 0.05). Por lo tanto, no se rechaza la hipótesis nula.
+
+#### No existe evidencia estadística suficiente para afirmar que, en promedio, los atletas de la zona Sur superen a los de la zona Centro-Norte por más de 1.3 segundos después del entrenamiento.
 
 
 #### 4) ¿Será cierto que hay más atletas de la zona Centro-Norte que redujeron sus mejores marcas en al menos 2,6 segundos que atletas de la zona Sur que lo hicieron en al menos 1,5 segundos?
@@ -154,13 +230,13 @@ n_Sur * (x_Sur/n_Sur) >= 5
 n_Sur * (1 - x_Sur/n_Sur) >= 5
 ```
 
-##### Como se cumplen las condiciones, procedemos a realizar la prueba de proporciones, en este caso usamos Wald:
+##### Como se cumplen las condiciones, procedemos a realizar la prueba de proporciones, en este caso usamos Wilson:
 ```{r,warning=FALSE, error=FALSE}
 # Realizar la prueba de proporciones
-resultado4 <- prop.test(x = c(x_CN, x_Sur), n = c(n_CN, n_Sur), alternative = "greater", correct = FALSE)
+resultado4 <- prop.test(x = c(x_CN, x_Sur), n = c(n_CN, n_Sur), alternative = "greater")
 resultado4
 ```
 
 ##### Interpretación de resultados:
-##### Dado que el p-valor es 0.0001735, que es menor que el nivel de significancia comúnmente utilizado (0.05), rechazamos la hipótesis nula. Esto sugiere que hay suficiente evidencia para afirmar que la proporción de atletas que redujeron sus marcas en al menos 2.6 segundos en la zona Centro-Norte es mayor que la proporción de atletas que redujeron en al menos 1.5 segundos en la zona Sur.
+##### La prueba de proporciones muestra un valor p de 0.0042 (p < 0.05). Por lo tanto, se rechaza la hipótesis nula. Existe evidencia estadística significativa para afirmar que la proporción de atletas que redujeron sus marcas en al menos 2.6 segundos en la zona Centro-Norte (92.3%) es mayor que la proporción de atletas que redujeron en al menos 1.5 segundos en la zona Sur (57.1%). Esto sugiere que los atletas de la zona Centro-Norte tuvieron un mejor desempeño en términos de reducción de tiempo en comparación con los atletas de la zona Sur.
 
