@@ -1,0 +1,153 @@
+---
+title: "Actividad 1"
+output: html_document
+date: "2025-08-21"
+---
+---
+title: "Actividad 1"
+output: html_document
+date: "2025-08-21"
+---
+## Equipo 9
+### Problema a responder: 
+### El nivel de ingreso de las mujeres de la RM ¿varía con el estado civil?
+
+
+```{r, echo=FALSE}
+# Función para contar valores únicos en una columna
+num_valores_unicos <- function(columna) {
+  return(length(unique(columna)))
+}
+
+# Función para obtener los valores únicos de una columna
+valores_unicos_columna <- function(df, columna) {
+  unique(df[[columna]])
+}
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+
+# Cargar datos desde archivo CSV
+mis_datos <- read.csv2("EP01DatosCasen2017.csv")
+
+# Esta parte del código fue realizada con el único propósito de verificar si coincidían los totales de mujeres 
+# comparado al total de mujeres con distinto estado civil en la Región Metropolitana de Santiago.
+
+
+# Filtrar solo las mujeres en el dataset
+datos_M <- filter(mis_datos, sexo == "Mujer")
+
+# Contar el total de mujeres en la muestra
+mujeresTotales <- nrow(datos_M)
+
+# Filtrar mujeres que viven en la Región Metropolitana de Santiago
+mujer_RM <- filter(datos_M, region == "Región Metropolitana de Santiago")
+
+# Contar mujeres en la Región Metropolitana
+MujeresRM <- nrow(mujer_RM)
+
+# Filtrar y contar por cada estado civil específico
+estadoCC <- filter(mujer_RM, ecivil == "Casado(a)")
+MujeresestadoCC <- nrow(estadoCC)
+
+estadoCS <- filter(mujer_RM, ecivil == "Soltero(a)")
+MujeresestadoCS <- nrow(estadoCS)
+
+estadoCV <- filter(mujer_RM, ecivil == "Viudo(a)")
+MujeresestadoCV <- nrow(estadoCV)
+
+estadoCSe <- filter(mujer_RM, ecivil == "Separado(a)")
+MujeresestadoCSe <- nrow(estadoCSe)
+
+estadoCD <- filter(mujer_RM, ecivil == "Divorciado (a)")
+MujeresestadoCD <- nrow(estadoCD)
+
+estadoCCo <- filter(mujer_RM, ecivil == "Conviviente o pareja sin acuerdo de unión civil")
+MujeresestadoCCo <- nrow(estadoCCo)
+
+estadoCA <- filter(mujer_RM, ecivil == "Anulado(a)")
+MujeresestadoCA <- nrow(estadoCA)
+
+estadoCCUC <- filter(mujer_RM, ecivil == "Conviviente civil (con acuerdo de unión civil)")
+MujeresestadoCCUC <- nrow(estadoCCUC)
+
+# Verificar que la suma de todos los estados civiles coincide con el total
+SumaTotal <- MujeresestadoCC + MujeresestadoCS + MujeresestadoCV + MujeresestadoCSe + 
+             MujeresestadoCD + MujeresestadoCCo + MujeresestadoCA + MujeresestadoCCUC
+```
+
+```{r, echo=FALSE }
+# Crear tabla descriptiva de las variables del dataset
+variables <- data.frame(
+  Nombre = c("folio", "o", "id.vivienda", "hogar", "region", "provincia", 
+             "comuna", "ing.comuna", "zona", "sexo", "edad", "ecivil", 
+             "ch1", "ytot"),
+  
+  Tipo = c("categórica, nominal", "numérica, discreta", "categórica, nominal", 
+           "categórica, nominal", "categórica, nominal", "categórica, nominal", 
+           "categórica, nominal", "numérica, discreta", "categórica, nominal", 
+           "categórica, nominal", "numérica, discreta", "categórica, nominal", 
+           "categórica, nominal", "numérica, discreta"),
+  
+  Descripción = c("Identificador único del hogar",
+                  "Número de orden de la persona dentro del hogar",
+                  "Identificador único de la vivienda",
+                  "Identificación del hogar dentro de la vivienda",
+                  "Región geográfica donde se encuentra el hogar",
+                  "Provincia donde se encuentra el hogar",
+                  "Comuna donde se encuentra el hogar",
+                  "Posición en ranking histórico de ingreso de la comuna (ascendente)",
+                  "Área geográfica (Urbano/Rural)",
+                  "Sexo de la persona registrada",
+                  "Edad de la persona registrada en años",
+                  "Estado civil de la persona registrada",
+                  "Situación ocupacional de la persona registrada",
+                  "Ingreso total de la persona")
+)
+
+# Mostrar tabla de variables usando knitr
+knitr::kable(variables, caption = "Descripción de Variables")
+```
+#### Para realizar el análisis se usarán las variables región, sexo, ecivil y ytot. Puesto que con esto se cubre el
+#### perfil objetivo a ver.
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+
+# Calcular la mediana de ingresos para cada estado civil
+medianas <- mujer_RM %>%
+  group_by(ecivil) %>%
+  summarise(mediana = median(ytot, na.rm = TRUE))
+
+# Crear gráfico de cajas con escala logarítmica
+ggplot(mujer_RM, aes(x = ecivil, y = ytot)) +
+  geom_boxplot(fill = "skyblue", color = "darkblue", outlier.alpha = 0.3) +
+  # Agregar texto con el valor de la mediana
+  stat_summary(
+    fun = median, 
+    geom = "text", 
+    aes(label = round(after_stat(y), 0)),  # Redondear a 0 decimales
+    vjust = -0.5,  # Ajustar posición vertical del texto
+    size = 3,      # Tamaño del texto
+    color = "red", # Color del texto
+    fontface = "bold"  # Texto en negrita
+  ) +
+  scale_y_log10() +  # Escala logarítmica en el eje Y
+  labs(
+    title = "Distribución de sueldos según estado civil con gráfico de cajas (escala log)",
+    subtitle = "Valores en rojo representan la mediana de ingresos",
+    x = "Estado civil",
+    y = "Sueldo (log10)"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotar etiquetas del eje X
+```
+
+#### El análisis de la distribución de ingresos según estado civil revela la existencia de patrones socioeconómicos significativos. Los grupos de "Anulado(a)" y "Divorciado(a)" presentan las medianas más elevadas, lo que indica que sus integrantes disfrutan, en general, de ingresos sustancialmente superiores. En el extremo opuesto, "Soltero(a)" y "Viudo(a)" registran las medianas más bajas, lo que sugiere una posición económica menos favorable.
+
+#### Respecto a la dispersión de los datos, se observa que los grupos "Casado(a)" y "Separado(a)" presentan una distribución relativamente homogénea de ingresos. Por el contrario, el grupo "Soltero(a)" destaca por una notable presencia de valores atípicos en el extremo inferior, lo que posiblemente refleja situaciones de precariedad laboral o etapas iniciales en la vida profesional.
+
+#### Esta variabilidad intergrupal sugiere que el estado civil se encuentra correlacionado con diferencias sustanciales en la distribución de ingresos. Si bien este análisis no permite establecer una relación causal, los patrones observados indican que el estatus marital actúa como un marcador asociado a otros factores subyacentes —como la edad, la experiencia laboral acumulada y las responsabilidades familiares— que en conjunto influyen en la realidad económica de los individuos.
