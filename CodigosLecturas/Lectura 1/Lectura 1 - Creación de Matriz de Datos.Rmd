@@ -1,0 +1,48 @@
+---
+title: "Lectura 1 - Creación Matriz de Datos"
+output: html_document
+date: "2025-09-15"
+---
+
+Codigo para la creación de Matriz de Datos en R
+
+```{r}
+
+# Crear un vector de strings y guardarlo en la variable 'nombre '
+
+nombre <- c("Alan Brito Delgado",
+            "Zacarías Labarca del Río",
+            "Elsa Payo Maduro")
+
+# Crear un vector de fechas y guardarlo en la variable "fecha_nacimiento"
+fecha_nacimiento <- as.Date(c("2008-01-25",
+                              "2006-10-04",
+                              "2008-03-27"))
+
+# Crear tres vectores de valores flotantes entre 1 .0 y 7 .0 y guardarlos
+# en 'prueba_1', 'prueba_2' y 'prueba_3'.
+
+prueba_1 <- c(5.5, 3.4, 4.5)
+prueba_2 <- c(3.2, 4.7, 4.1)
+prueba_3 <- c(4.8, 4.3, 5.1)
+
+# Construir una matriz de datos a partir de los vectores anteriores y 
+#guardarlo en la variable "datos"
+
+datos <- data.frame(nombre, fecha_nacimiento, prueba_1, prueba_2, prueba_3)
+
+# Define el nombre del archivo de salida
+
+salida = "" # Corresponde a la consola
+
+# Guardar la matriz de datos en un archivo CSV en el formato inglés
+write.csv(datos, salida)
+
+# Escribe una linea en blanco en un archivo (en modo "append")
+write("",salida)
+# Guardar la matriz de datos en un archivo CSV en el formato español sin incluir los nombres de las observaciones
+write.csv2(datos, salida, row.names = FALSE)
+
+
+```
+

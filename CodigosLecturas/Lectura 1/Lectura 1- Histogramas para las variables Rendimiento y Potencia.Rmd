@@ -1,0 +1,25 @@
+---
+title: "Lectura 1- Histogramas para las variables Rendimiento y Potencia"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+
+library(ggpubr)
+
+# Cargar datos
+datos <- read.csv2("Mtcars.csv", stringsAsFactors = TRUE, row.names = 1)
+
+# Crear y mostrar un histograma para la variable Rendimiento
+g1 <- gghistogram(datos, x = "Rendimiento", bins = 10,
+    add = "mean", xlab = "Rendimiento [Millas/galón]", ylab = "Frecuencia",
+    color = "steelblue", fill = "steelblue", alpha = 0.7)
+print(g1)
+
+# Crear y mostrar un histograma para la variable Potencia
+g2 <- gghistogram(datos, x = "Potencia", bins = 10,
+    add = "mean", xlab = "Potencia [hp]", ylab = "Frecuencia",
+    color = "steelblue", fill = "steelblue", alpha = 0.7)
+print(g2)
+```

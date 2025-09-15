@@ -1,0 +1,48 @@
+---
+title: "Lectura 1 - Tabla de Contingencia para una variable"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+# Cargar datos
+datos <- read.csv2("Mtcars.csv", stringsAsFactors = TRUE, row.names = 1)
+
+# Crear y mostrar la tabla de contingencia para la variable Cambios
+contingencia <- table(datos[["Cambios"]])
+cat("Tabla de contingencia generada con table():\n")
+cat("---\n")
+print(contingencia)
+
+# Otra forma de crear la misma tabla
+contingencia <- xtabs(~ Cambios, data = datos)
+cat("\nTabla de contingencia generada con xtabs():\n")
+cat("---\n")
+print(contingencia)
+
+# Calcular totales por fila y mostrarlos por separado
+totales <- marginSums(contingencia)
+cat("\nTotales por fila:\n")
+cat("---\n")
+print(totales)
+
+# Calcular totales por fila y agregarlos a la tabla
+con_totales <- addmargins(contingencia, 1)
+cat("\nTabla de contingencia con totales por fila:\n")
+cat("---\n")
+print(con_totales)
+
+# Convertir a tabla de proporciones
+proporciones <- prop.table(contingencia)
+proporciones <- addmargins(proporciones, 1)
+cat("\nTabla de contingencia con proporciones:\n")
+cat("---\n")
+print(proporciones)
+
+# Convertir a tabla de porcentajes con 2 decimales
+porcentajes <- round(prop.table(contingencia), 4) * 100
+porcentajes <- addmargins(porcentajes)
+cat("\nTabla de contingencia con porcentajes:\n")
+cat("---\n")
+print(porcentajes)
+```

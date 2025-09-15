@@ -1,0 +1,38 @@
+---
+title: "Lectura 1 - Gráfico de barras comparativos"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+library(ggpubr)
+
+# Cargar datos
+datos <- read.csv2("Mtcars.csv", stringsAsFactors = TRUE, row.names = 1)
+
+# Crear tabla de contingencia para las variables Motor y Cambios con tipo data.frame
+tabla <- xtabs(~ Motor + Cambios, data = datos)
+contingencia <- as.data.frame(tabla)
+
+# Crear gráfico de barras apiladas (o segmentadas)
+g1 <- ggbarplot(contingencia, x = "Cambios", y = "Freq",
+    title = "Barras apiladas", ylab = "Frecuencia",
+    fill = "Motor", alpha = 0.7,
+    palette = c("steelblue", "steelblue1", "slategray4"))
+g2 <- ggbarplot(contingencia, x = "Cambios", y = "Freq", position = position_dodge2(),
+    title = "Barras agrupadas", ylab = "Frecuencia",
+    fill = "Motor", alpha = 0.7,
+    palette = c("steelblue", "steelblue1", "slategray4"))
+g3 <- ggbarplot(contingencia, x = "Cambios", y = "Freq", position = position_fill(),
+    title = "Barras estandarizadas", ylab = "Frecuencia",
+    fill = "Motor", alpha = 0.7,
+    palette = c("steelblue", "steelblue1", "slategray4"))
+g4 <- ggarrange(g1, g2, g3, nrow = 1, common.legend = TRUE)
+
+# Agregar un título común en negrita y con fuente de 24 puntos
+titulo <- text_grob("Tipo de motor por cantidad de cambios", size = 24)
+g <- annotate_figure(g4, top = titulo)
+
+# Mostrar la figura obtenida
+print(g)
+```

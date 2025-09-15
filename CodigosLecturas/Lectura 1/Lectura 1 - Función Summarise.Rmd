@@ -1,0 +1,32 @@
+---
+title: "Lectura 1 - Función Summarise"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+library(dplyr)
+
+datos <- read.csv2("Mtcars.csv", stringsAsFactors = TRUE, row.names = 1)
+
+# Calcular varias medidas para la variable Potencia
+medidas_potencia <- datos |> summarise(Media = mean(Potencia),
+    Mediana = median(Potencia),
+    Varianza = var(Potencia),
+    RIQ = IQR(Potencia))
+
+# Calcular la media y la desviación estándar para las variables Peso y Cuarto_milla
+medidas_varias <- datos |> summarise(Media_Peso = mean(Peso),
+    Media_CM = mean(Cuarto_milla),
+    DesvEst_Peso = sd(Peso),
+    DesvEst_CM = sd(Cuarto_milla))
+
+# Mostrar las medidas obtenidas
+cat("Resumen para 'Potencia':\n")
+cat("---\n")
+print(medidas_potencia)
+
+cat("\nMedia +/- desv. est. de las variables 'Peso' y 'Cuarto_milla':\n")
+cat("---\n")
+print(medidas_varias)
+```

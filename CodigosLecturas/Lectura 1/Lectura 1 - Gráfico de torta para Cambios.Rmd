@@ -1,0 +1,26 @@
+---
+title: "Lectura 1 - Gráfico de torta para Cambios"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r }
+library(ggpubr)
+
+# Cargar datos
+datos <- read.csv2("Mtcars.csv", stringsAsFactors = TRUE, row.names = 1)
+
+# Crear la tabla de frecuencias y convertirla al tipo data.frame.
+contingencia <- as.data.frame(xtabs(~ Cambios, data = datos))
+
+# Crear el gráfico de torta para estas frecuencias
+g <- ggpie(contingencia, x = "Freq", label = "Cambios",
+    title = "Cantidad de cambios de los automóviles",
+    color = "slategray4", fill = "Cambios", alpha = 0.7,
+    palette = c("steelblue", "steelblue1", "slategray3"),
+    lab.font = c(3, "plain", "white"), lab.pos = "in",
+    legend = "none")
+
+# Mostrar el gráfico de torta obtenido
+print(g)
+```

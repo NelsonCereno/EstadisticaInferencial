@@ -1,0 +1,40 @@
+---
+title: "Lectura 1 - Gráfico de dispersión Rendimiento vs Peso"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r }
+library(ggpubr)
+
+# Cargar datos
+datos <- read.csv2("Mtcars.csv", stringsAsFactors = TRUE, row.names = 1)
+
+# Crear y mostrar un gráfico de dispersión para las variables Rendimiento y Peso
+g <- ggscatter(datos, x = "Rendimiento", y = "Peso",
+    color = "steelblue", alpha = 0.7,
+    title = "Rendimiento v/s peso",
+    xlab = "Rendimiento [millas/galón]", ylab = "Peso [1000 lb]")
+
+print(g)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

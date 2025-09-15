@@ -1,0 +1,43 @@
+---
+title: "Lectura 1 - Tabla de Contingencia y proporciones para dos variables"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+# Cargar datos
+datos <- read.csv2("Mtcars.csv", stringsAsFactors = TRUE, row.names = 1)
+
+# Crear una tabla de contingencia para las variables Transmission y Cambios
+contingencia <- table(datos[["Transmission"]], datos[["Cambios"]])
+cat("Tabla de contingencia generada con table():\n")
+cat("---\n")
+print(contingencia)
+
+# Otra forma de crear la misma tabla
+contingencia <- xtabs(~ Transmission + Cambios, data = datos)
+cat("\nTabla de contingencia generada con xtabs():\n")
+cat("---\n")
+print(contingencia)
+
+# Proporciones con totales por fila
+proporciones_fila <- prop.table(contingencia, margin = 1)
+proporciones_fila <- addmargins(proporciones_fila, margin = 2)
+cat("\nTabla de contingencia con proporciones totales por fila:\n")
+cat("---\n")
+print(proporciones_fila)
+
+# Proporciones con totales por columna
+proporciones_columna <- prop.table(contingencia, margin = 2)
+proporciones_columna <- addmargins(proporciones_columna, margin = 1)
+cat("\nTabla de contingencia con proporciones totales por columna:\n")
+cat("---\n")
+print(proporciones_columna)
+
+# Proporciones con ambos totales marginales
+proporciones <- prop.table(contingencia)
+proporciones <- addmargins(proporciones)
+cat("\nTabla de contingencia con proporciones totales:\n")
+cat("---\n")
+print(proporciones)
+```

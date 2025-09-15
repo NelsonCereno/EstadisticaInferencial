@@ -1,0 +1,34 @@
+---
+title: "Lectura 1 - Múltiples gráficos de dispersión"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r }
+library(ggpubr)
+
+# Cargar datos
+datos <- read.csv2("Mtcars.csv", stringsAsFactors = TRUE, row.names = 1)
+
+# Crear y ajustar un gráfico de dispersión para variables independientes
+g1 <- ggscatter(datos, x = "Peso", y = "Cuarto_milla", title = "Independientes",
+    xlab = "Peso [1000 lb]", ylab = "Tiempo primer cuarto de milla [s]",
+    color = "steelblue", alpha = 0.7)
+print(g1)
+# Crear y ajustar un gráfico de dispersión para variables con asociación positiva
+g2 <- ggscatter(datos, x = "Peso", y = "Potencia", title = "Asociación positiva",
+    xlab = "Peso [1000 lb]", ylab = "Potencia [hp]",
+    color = "steelblue", alpha = 0.7)
+print(g2)
+# Crear y ajustar un gráfico de dispersión para variables con asociación negativa
+g3 <- ggscatter(datos, x = "Peso", y = "Rendimiento", title = "Asociación negativa",
+    xlab = "Peso [1000 lb]", ylab = "Rendimiento [millas/galón]",
+    color = "steelblue", alpha = 0.7)
+print(g3)
+# Reducir el tamaño de los textos, unir los gráficos y mostrar el resultado
+g1 <- ggpar(list(g1, g2, g3),
+    font.x = c(10, "plain", "black"), font.y = c(10, "plain", "black"))
+g <- ggarrange(plotlist = list(g1, g2, g3), ncol = 3, nrow = 1, common.legend = TRUE)
+
+```
+

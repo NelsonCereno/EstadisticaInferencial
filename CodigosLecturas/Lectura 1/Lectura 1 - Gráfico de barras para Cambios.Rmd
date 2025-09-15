@@ -1,0 +1,26 @@
+---
+title: "Lectura 1 - Gráfico de barras para Cambios"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+library(ggpubr)
+
+# Cargar datos
+datos <- read.csv2("Mtcars.csv", stringsAsFactors = TRUE, row.names = 1)
+
+# Crear la tabla de frecuencias para la variable Cambios y convertirla al tipo data.frame.
+contingencia <- as.data.frame(xtabs(~ Cambios, data = datos))
+
+# Crear el gráfico de barras y ajustar su estética
+g <- ggbarplot(contingencia, x = "Cambios", y = "Freq",
+    title = "Cantidad de cambios de los automóviles",
+    xlab = "Cantidad de cambios", ylab = "Frecuencia",
+    color = "Cambios", fill = "Cambios", alpha = 0.7,
+    palette = c("steelblue", "steelblue1", "slategray4"))
+g <- ggpar(g, legend = "none")
+
+# Mostrar el gráfico de barras obtenido
+print(g)
+```

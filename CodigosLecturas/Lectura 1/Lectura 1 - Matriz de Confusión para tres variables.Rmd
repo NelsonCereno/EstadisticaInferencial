@@ -1,0 +1,27 @@
+---
+title: "Lectura 1 - Matriz de Confusión para tres variables"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+# Cargar datos
+datos <- read.csv2("Mtcars.csv", stringsAsFactors = TRUE, row.names = 1)
+
+# Convertir la variable Cambios en categórica
+datos[["Cambios"]] <- factor(datos[["Cambios"]])
+
+# Crear una tabla de contingencia para las variables Transmission, Cambios y Motor
+contingencia <- ftable(datos[["Transmission"]], datos[["Cambios"]], datos[["Motor"]])
+
+# Mostrar la tabla de contingencia obtenida
+cat("\nTabla de contingencia generada con ftable():\n")
+cat("---\n")
+print(contingencia)
+
+# Otra forma de crear una tabla de contingencia para tres variables
+contingencia <- xtabs(~ Cambios + Transmission + Motor, data = datos)
+cat("\nTabla de contingencia generada con xtabs():\n")
+cat("---\n")
+print(contingencia)
+```

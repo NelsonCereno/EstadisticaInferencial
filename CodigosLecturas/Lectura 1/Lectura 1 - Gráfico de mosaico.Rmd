@@ -1,0 +1,24 @@
+---
+title: "Lectura 1 - Gráfico de mosaico"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r }
+library(ggmosaic)
+# Cargar datos
+datos <- read.csv2("Mtcars.csv", stringsAsFactors = TRUE, row.names = 1)
+
+# Crear una tabla de contingencia para las variables Cambios y Motor con tipo data.frame
+tabla <- xtabs(~ Cambios + Motor, data = datos)
+contingencia <- as.data.frame(tabla)
+
+# Crear un gráfico de mosaico y ajustar la estética
+g <- ggplot(data = contingencia)
+g <- g + geom_mosaic(aes(weight = Freq, x = product(Cambios), fill = Motor))
+g <- g + labs(x = "Cambios", y = "Motor", title = "Tipo de motor por cantidad de cambios")
+g <- g + scale_fill_manual(values=c("steelblue", "steelblue4"))
+# Mostrar el gráfico obtenido
+print(g)
+```
+
