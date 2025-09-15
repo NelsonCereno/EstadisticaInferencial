@@ -1,0 +1,42 @@
+---
+title: "Lectura 2 - Distribución muestral de la media"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+library(ggpubr)
+
+# Fijar la semilla para generar los mismos números pseudoaleatorios cada vez
+set.seed(9373)
+
+# Generar aleatoriamente una población de tamaño 1.500, suponiendo que sigue
+# una distribución normal con media 4,32 y desviación estándar 0,98.
+poblacion <- rnorm(n = 1500, mean = 4.32, sd = 0.98)
+
+# Calcular y mostrar la media de la población
+media_poblacion <- mean(poblacion)
+cat("Media de la población:", media_poblacion, "\n")
+
+# Tomar 1.000 muestras de tamaño 100. Quedan almacenadas como una matriz donde cada
+# columna es una muestra.
+tamano_muestra <- 100
+repeticiones <- 1000
+
+muestras <- replicate(repeticiones, sample(poblacion, tamano_muestra))
+
+# Calcular medias muestrales y almacenar los resultados con tipo data.frame
+medias <- colMeans(muestras)
+medias <- as.data.frame(medias)
+
+# Construir un histograma de las medias muestrales, marcando la media de los datos
+g <- gghistogram(data = medias, x = "medias", bins = 20,
+    title = "Distribución de la media muestral",
+    xlab = "Media", ylab = "Frecuencia",
+    color = "steelblue", fill = "steelblue", alpha = 0.7,
+    add = "mean", add.params = list(color = "steelblue4", linetype = "dashed"))
+
+# Mostrar el gráfico obtenido
+print(g)
+
+```

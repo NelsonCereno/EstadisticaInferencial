@@ -1,0 +1,92 @@
+---
+title: "Lectura 5 - Procedimiento post-hoc para prueba x2 de independencia"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+
+# Crear la tabla de contingencia
+comestible <- c(404, 1948, 32, 228, 1596)
+venenoso <- c(48, 1708, 0, 600, 1556)
+tabla <- as.table(rbind(comestible, venenoso))
+dimnames(tabla) <- list(
+  tipo = c("comestible", "venenoso"),
+  sombrero = c("campana", "convexo", "hundido", "nudoso", "plano")
+)
+
+# Definir condiciones y el nivel de significación
+minima_frec_esperada <- 5
+alfa <- 0.05
+
+# Realizar prueba chi-cuadrado de independencia
+prueba <- chisq.test(tabla)
+
+# Mostrar la tabla
+cat("Tabla de contingencia:\n")
+cat("---\n")
+print(tabla)
+
+cat("\n\nPrueba ómnibus:\n")
+cat("==========\n")
+
+# Mostrar las frecuencias esperadas
+cat("\nFrecuencias esperadas:\n")
+cat("---\n")
+esperadas <- round(prueba[["expected"]], 1)
+print(esperadas)
+cat("Frecuencias esperadas bajo", minima_frec_esperada)
+cat(":", sum(esperadas < minima_frec_esperada), "\n")
+
+# Mostrar el resultado de la prueba
+cat("\nResultado de la prueba chi-cuadrado de independencia:\n")
+cat("---")
+print(prueba)
+
+```
+
+
+
+```{r}
+
+# Realizar procedimiento post-hoc si corresponde
+if(prueba[["p.value"]] < alfa) {
+  cat("Procedimiento post-hoc:\n")
+  cat("==================\n\n")
+
+  # Obtener los pares de formas de sombrero
+  pares <- t(combn(colnames(tabla), 2))
+  N <- nrow(pares)
+
+  # Obtener las pruebas post-hoc
+  pruebas_ph <- sapply(1:N, function(i) chisq.test(tabla[, pares[i, ]]), simplify = FALSE)
+
+  # Identificar las pruebas chi-cuadrado post-hoc que no cumplen condiciones
+  i_no <- which(sapply(1:N, function(i) min(pruebas_ph[[i]][["expected"]]) < minima_frec_esperada))
+
+  # Cambiar la prueba post-hoc cuando no se cumplen las condiciones
+  if(length(i_no) > 0)
+    pruebas_ph[i_no] <- sapply(i_no, function(i) fisher.test(tabla[, pares[i, ]]), simplify = FALSE)
+
+  # Preparar tabla con el resumen de resultados
+  nombre_ph <- rep("Chi cuadrado", N)
+  nombre_ph[i_no] <- "Ex. de Fisher"
+  estadistico <- sapply(1:N, function(i) pruebas_ph[[i]][["statistic"]])
+  estadistico[i_no] <- sapply(i_no, function(i) pruebas_ph[[i]][["estimate"]])
+  estadistico <- round(unlist(estadistico), 2)
+  p_val <- sapply(1:N, function(i) pruebas_ph[[i]][["p.value"]])
+  p_adj_h <- p.adjust(p_val, method = "holm")
+  p_adj_by <- p.adjust(p_val, method = "BY")
+  sig_h <- ifelse(p_adj_h < alfa, "*", "")
+  sig_by <- ifelse(p_adj_by < alfa, "*", "")
+
+  resultados <- data.frame(pares[, 1], pares[, 2], nombre_ph, estadistico)
+  resultados <- cbind(resultados, p_val, p_adj_h, sig_h, p_adj_by, sig_by)
+  colnames(resultados) <- c("Forma1", "Forma2", "Prueba", "Estadistico",
+                            "Valor p", "P.adj_Holm", "", "P.adj_BY", "")
+
+  # Mostrar resumen de resultados
+  print(resultados, digits = 2)
+}
+
+```

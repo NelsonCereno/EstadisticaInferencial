@@ -1,0 +1,46 @@
+---
+title: "Lectura 2 -  Graficando distribuciones normales"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+library(ggpubr)
+library(latex2exp)
+
+# Definir las distribuciones normales del ejemplo
+medias <- c(10, 10, 10, 10)
+sigmas <- c(1, 2, 3, 4)
+vars <- sigmas^2
+# Crear las etiquetas para cada ejemplo usando LaTeX
+labels_str <- sprintf(r'($\mathcal{N}(\mu=%d,\sigma^2=%d)$)', medias, vars)
+
+# Construir las distribuciones normales
+x <- seq(-5, 25, 0.01)
+y1 <- dnorm(x, mean = medias[1], sd = sigmas[1])
+y2 <- dnorm(x, mean = medias[2], sd = sigmas[2])
+y3 <- dnorm(x, mean = medias[3], sd = sigmas[3])
+y4 <- dnorm(x, mean = medias[4], sd = sigmas[4])
+
+# Juntar las distribuciones de ejemplo en una sola matriz de datos
+n <- length(x)
+y <- c(y1, y2, y3, y4)
+ejemplo <- factor(rep(sigmas, each = n))
+datos_norm <- data.frame(x, y, ejemplo)
+
+# Graficar las distribuciones normales
+g <- ggline(datos_norm, "x", "y", numeric.x.axis = TRUE, plot_type = "l",
+    title = "Ejemplos de distribuciones normales", xlab = FALSE, ylab = FALSE,
+    color = "ejemplo")
+
+# Desplegar las leyendas usando LaTeX
+colores <- c("steelblue", "steelblue1", "steelblue3", "steelblue4")
+g <- ggpar(g, legend = c(0.8, 0.7))
+g <- ggpar(g, legend.title = "Distribución")
+g <- ggpar(g, font.legend = c(10, "plain", "black"))
+g <- g + scale_color_discrete(labels = lapply(labels_str, TeX), type = colores)
+g <- g + theme(legend.text = element_text(family = "serif", size = 14))
+# Mostrar el gráfico
+print(g)
+
+```

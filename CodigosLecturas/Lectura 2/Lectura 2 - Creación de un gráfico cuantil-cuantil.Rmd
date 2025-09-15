@@ -1,0 +1,18 @@
+---
+title: "Lectura 2 - Creación de un gráfico cuantil-cuantil"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r }
+library(ggpubr)
+# Cargar datos
+datos <- read.csv2("Mtcars.csv", stringsAsFactors = TRUE, row.names = 1)
+
+# Construir gráfico Q-Q para la variable Rendimiento
+g <- ggqqplot(datos, x = "Rendimiento", color = "steelblue", alpha = 0.7)
+
+# Mostrar el gráfico conseguido
+print(g)
+
+```

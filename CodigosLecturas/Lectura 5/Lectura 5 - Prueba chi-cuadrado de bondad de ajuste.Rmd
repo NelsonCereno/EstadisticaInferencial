@@ -1,0 +1,42 @@
+---
+title: "Lectura 5 - Prueba chi-cuadrado de bondad de ajuste"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+
+# Crear la tabla de contingencia
+nomina <- c(236, 78, 204, 76, 66)
+muestra <- c(17, 9, 14, 10, 5)
+tabla <- as.table(rbind(nomina, muestra))
+dimnames(tabla) <- list(
+  grupo = c("Nómina", "Muestra"),
+  lenguajes = c("C", "Java", "Python", "Ruby", "Otro")
+)
+
+# Definir condiciones y el nivel de significación
+minima_frec_esperada <- 5
+alfa <- 0.05
+
+# Realizar prueba chi-cuadrado de bondad de ajuste
+prueba <- chisq.test(tabla)
+
+# Mostrar la tabla
+cat("Tabla de contingencia:\n")
+cat("---\n")
+print(tabla)
+
+# Mostrar las frecuencias esperadas
+cat("\nFrecuencias esperadas:\n")
+cat("---\n")
+esperadas <- round(prueba[["expected"]], 1)
+print(esperadas)
+cat("Frecuencias esperadas bajo", minima_frec_esperada)
+cat(":", sum(esperadas < minima_frec_esperada), "\n")
+
+# Mostrar el resultado de la prueba
+cat("\nResultado de la prueba chi-cuadrado de bondad de ajuste:\n")
+print(prueba)
+
+```

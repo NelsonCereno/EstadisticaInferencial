@@ -1,0 +1,24 @@
+---
+title: "Lectura 2 - Cálculo de valor esperado, varianza y desviación estándar"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+# Crear una variable discreta para representar el dado adulterado
+resultados <- 1:6
+probabilidades <- c(0.25, 0.125, 0.125, 0.125, 0.125, 0.25)
+
+# Calcular y mostrar el valor esperado
+esperado <- sum(resultados * probabilidades)
+cat("Valor esperado:", esperado, "\n")
+
+# Calcular y mostrar la varianza
+varianza <- sum((resultados - esperado)^2 * probabilidades)
+cat("Varianza:", varianza, "\n")
+
+# Calcular y mostrar la desviación estándar
+desviacion <- sqrt(varianza)
+cat("Desviación estándar:", desviacion, "\n")
+
+```

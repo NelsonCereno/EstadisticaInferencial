@@ -1,0 +1,21 @@
+---
+title: "Lectura 3 - Método de Wilson para una proporción"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+# Fijar valores conocidos y establecer el nivel de significación buscado
+n <- 150
+p_exito <- 0.64
+valor_nulo <- 0.7
+alfa <- 0.05
+
+# Calcular cantidad de éxitos
+exitos <- p_exito * n
+
+# Realizar y mostrar la prueba de Wilson en R
+prueba <- prop.test(exitos, n = n, p = valor_nulo,
+                    alternative = "greater", conf.level = 1 - alfa)
+print(prueba)
+```

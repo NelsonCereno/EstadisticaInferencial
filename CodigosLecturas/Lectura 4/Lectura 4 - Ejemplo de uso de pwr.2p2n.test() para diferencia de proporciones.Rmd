@@ -1,0 +1,19 @@
+---
+title: "Lectura 4 - Ejemplo de uso de pwr.2p2n.test() para diferencia de proporciones"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r }
+
+library(pwr)
+
+# Calcular h de Cohen
+h <- ES.h(0.18, 0.13)
+
+# Calcular poder para muestras de tamaño 25 y 30
+resultado <- pwr.2p2n.test(h = h, n1 = 25, n2 = 30,
+                           alternative = "greater", sig.level = 0.05)
+print(resultado)
+
+```

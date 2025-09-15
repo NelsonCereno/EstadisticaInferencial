@@ -1,0 +1,53 @@
+---
+title: "Lectura 5 - Prueba chi-cuadrado de homogeneidad"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+
+# Crear la tabla de contingencia
+programadores <- c(42, 56, 51, 27, 24)
+programadoras <- c(25, 24, 27, 15, 9)
+tabla <- as.table(rbind(programadores, programadoras))
+dimnames(tabla) <- list(
+  sexo = c("programadores", "programadoras"),
+  lenguajes = c("C", "Java", "Python", "Ruby", "Otro")
+)
+
+# Definir condiciones y el nivel de significación
+minima_frec_esperada <- 5
+alfa <- 0.05
+
+# Obtener las frecuencias esperadas
+sumas_filas <- apply(tabla, 1, sum)
+sumas_columnas <- apply(tabla, 2, sum)
+suma_total <- sum(tabla)
+esperadas <- outer(sumas_filas, sumas_columnas, "*") / suma_total
+esperadas <- round(esperadas, 1)
+dimnames(esperadas) <- list(
+  sexo = c("programadores", "programadoras"),
+  lenguajes = c("C", "Java", "Python", "Ruby", "Otro")
+)
+
+# Realizar prueba chi-cuadrado de homogeneidad
+prueba <- chisq.test(tabla)
+
+# Mostrar la tabla
+cat("Tabla de contingencia:\n")
+cat("---\n")
+print(tabla)
+
+# Mostrar las frecuencias esperadas y si hay grupos que no cumplen con el mínimo
+cat("\nFrecuencias esperadas:\n")
+cat("---\n")
+print(esperadas)
+cat("Frecuencias esperadas bajo", minima_frec_esperada)
+cat(":", sum(esperadas < minima_frec_esperada), "\n")
+
+# Mostrar el resultado de la prueba
+cat("\nResultado de la prueba chi-cuadrado de homogeneidad:\n")
+cat("---\n")
+print(prueba)
+
+```

@@ -1,0 +1,44 @@
+---
+title: "Lectura 3 - Método de Wald para dos proporciones (ejemplo 1)"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r }
+# Fijar valores conocidos
+n_hombres <- 48
+n_mujeres <- 42
+exitos_hombres <- 26
+exitos_mujeres <- 20
+valor_nulo <- 0
+
+# Fijar el nivel de significación
+alfa <- 0.05
+
+# Calcular probabilidades de éxito
+p_hombres <- exitos_hombres / n_hombres
+p_mujeres <- exitos_mujeres / n_mujeres
+
+# Estimar la diferencia de las proporciones observadas
+diferencia <- p_hombres - p_mujeres
+
+# Construir y mostrar el intervalo de confianza
+error_hombres <- (p_hombres * (1 - p_hombres)) / n_hombres
+error_mujeres <- (p_mujeres * (1 - p_mujeres)) / n_mujeres
+error_est <- sqrt(error_hombres + error_mujeres)
+z_critico <- qnorm(alfa / 2, lower.tail = FALSE)
+inferior <- diferencia - z_critico * error_est
+superior <- diferencia + z_critico * error_est
+cat("Intervalo de confianza = [", inferior, ", ", superior, "]\n", sep = "")
+
+# Realizar y mostrar la prueba de hipótesis
+p_agrupada <- (exitos_hombres + exitos_mujeres) / (n_hombres + n_mujeres)
+error_hombres <- (p_agrupada * (1 - p_agrupada)) / n_hombres
+error_mujeres <- (p_agrupada * (1 - p_agrupada)) / n_mujeres
+error_est_hip_nula <- sqrt(error_hombres + error_mujeres)
+z <- (diferencia - valor_nulo) / error_est_hip_nula
+p <- 2 * pnorm(z, lower.tail = FALSE)
+cat("Hipótesis alternativa bilateral\n")
+cat("z =", z, "\n")
+cat("p =", p, "\n")
+```

@@ -1,0 +1,45 @@
+---
+title: "Lectura 2 - Representación gráfica de la media móvil"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r }
+library(ggpubr)
+
+# Establecer la semilla para generar los mismos números aleatorios
+set.seed(9373)
+
+# Generar aleatoriamente una población de tamaño 1.000
+poblacion <- rnorm(n = 1000, mean = 4.32, sd = 0.98)
+
+# Calcular la media de la población
+media_poblacion <- mean(poblacion)
+cat("Media de la población:", media_poblacion, "\n")
+
+# Tomar una muestra de tamaño 220
+tamano_muestra <- 220
+muestra <- sample(poblacion, tamano_muestra)
+
+# Calcular las medias acumuladas
+n <- seq(along = muestra)
+media <- cumsum(muestra) / n
+
+# Crear una matriz de datos con los tamaños y las medias muestrales
+datos <- data.frame(n, media)
+
+# Graficar las medias muestrales
+g <- ggline(data = datos, x = "n", y = "media", title = "Media móvil",
+    xlab = "Tamaño de la muestra considerada", ylab = "Media muestral",
+    plot_type = "l", color = "steelblue", alpha = 0.7)
+
+# Añadir al gráfico una recta con la media de la población
+g <- g + annotate("segment", x = 0, y = media_poblacion,
+    xend = tamano_muestra, yend = media_poblacion,
+    colour = "steelblue2", alpha = 0.7,
+    linewidth = 1, linetype = "dashed")
+
+# Mostrar el gráfico generado
+print(g)
+
+```

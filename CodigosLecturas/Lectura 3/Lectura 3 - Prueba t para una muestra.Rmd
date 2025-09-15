@@ -1,0 +1,54 @@
+---
+title: "Lectura 3 - Prueba t para una muestra"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+library(ggpubr)
+
+# Cargar los datos
+tiempo <- c(411.5538, 393.2753, 445.8905, 411.4022, 498.8969, 388.6731, 430.0382,
+            469.4734, 409.5844, 442.0800, 418.1169, 408.4110, 463.3733, 407.0908, 516.5222)
+
+# Establecer los datos conocidos
+n <- length(tiempo)
+grados_libertad <- n - 1
+valor_nulo <- 500
+
+# Verificar si la distribución se acerca a la normal
+g <- ggqqplot(data = data.frame(tiempo), x = "tiempo",
+              title = "Gráfico Q-Q muestra v/s distribución normal",
+              xlab = "Teórico", ylab = "Nuestra",
+              color = "steelblue", alpha = 0.7)
+print(g)
+
+# Fijar un nivel de significación
+alfa <- 0.025
+
+# Calcular y mostrar la media, el estadístico de prueba y el valor p para la muestra
+media <- mean(tiempo)
+desv_est <- sd(tiempo)
+error_est <- desv_est / sqrt(n)
+estadistico_t <- (media - valor_nulo) / error_est
+p <- pt(estadistico_t, df = grados_libertad, lower.tail = TRUE)
+
+cat("Prueba t unilateral para una muestra (a mano):\n")
+cat("---\n")
+cat("Media muestral:", media, "[ms]\n")
+cat("Estadístico t:", estadistico_t, "\n")
+cat("Valor p : ", p, "\n")
+
+# Construir y mostrar el intervalo de confianza
+t_critico <- qt(alfa, df = grados_libertad, lower.tail = FALSE)
+superior <- media + t_critico * error_est
+cat(sprintf("%f %%l.c. :", alfa * 100))
+cat(" (-Inf, ", superior, "]\n", sep = "")
+
+# Aplicar la prueba t de Student con la función de R
+prueba <- t.test(tiempo, mu = valor_nulo, alternative = "less", conf.level = 1 - alfa)
+cat("\nPrueba t unilateral para una muestra usando t.test:\n")
+cat("---\n")
+print(prueba)
+
+```

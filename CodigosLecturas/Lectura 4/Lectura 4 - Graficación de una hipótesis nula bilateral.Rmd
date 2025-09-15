@@ -1,0 +1,53 @@
+---
+title: "Lectura 4 - Graficación de una hipótesis nula bilateral"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+library(ggpattern)
+library(ggpubr)
+
+# Definir los valores fijados en el enunciado
+n <- 36
+alfa <- 0.05
+media_nula <- 60
+sigma <- 12
+
+# Calcular el error estándar
+SE <- sigma / sqrt(n)
+
+# Gráficar la distribución muestral de las medias si la hipótesis nula fuera verdadera
+g_x_limites <- media_nula + c(-6.9, 5) * SE
+g <- ggplot() + xlim(g_x_limites) + ylim(c(0, 0.22))
+g <- g + labs(title = "Distribución muestral de las medias")
+g <- g + labs(x = "Tiempo de ejecución [s]", y = "Densidad")
+g <- g + theme_pubr()
+
+# Agregamos la hipótesis nula
+dist_0 <- stat_function(fun = dnorm, geom = "area",
+    args = list(mean = media_nula, sd = SE),
+    colour = "steelblue4", fill = "steelblue4", alpha = 0.2)
+
+g1 <- g + dist_0
+g1 <- g1 + geom_vline(xintercept = media_nula, colour = "steelblue4")
+
+# Calcular y colorear las regiones críticas de la hipótesis nula
+z_critic_inferior <- qnorm(alfa/2, mean = media_nula, sd = SE, lower.tail = TRUE)
+z_critic_superior <- qnorm(alfa/2, mean = media_nula, sd = SE, lower.tail = FALSE)
+
+g2 <- g1 + stat_function(fun = dnorm, geom = "area",
+    args = list(mean = media_nula, sd = SE),
+    xlim = c(g_x_limites[1], z_critic_inferior),
+    fill = "steelblue4", alpha = 0.4)
+
+g2 <- g2 + stat_function(fun = dnorm, geom = "area",
+    args = list(mean = media_nula, sd = SE),
+    xlim = c(z_critic_superior, g_x_limites[2]),
+    fill = "steelblue4", alpha = 0.4)
+
+# Mostrar el gráfico
+print(g2)
+
+
+```

@@ -1,0 +1,55 @@
+---
+title: "Lectura 2 - Cálculo del valor p para una prueba de una cola"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r }
+library(ggpubr)
+# Generar una muestra donde la media cumpla con la hipótesis nula
+set.seed(872)
+
+mu_pob_anterior <- 530
+mu_muestra_nueva <- 527.9
+desv_est <- 48
+n <- 1600
+error_est <- desv_est / sqrt(n)
+
+x <- seq(mu_pob_anterior - 5.2 * error_est, mu_pob_anterior + 5.2 * error_est, 0.01)
+y <- dnorm(x, mean = mu_pob_anterior, sd = error_est)
+muestra <- data.frame(x, y)
+
+# Graficar la muestra
+g <- ggplot(data = muestra, aes(x))
+g <- g + stat_function(fun = dnorm, args = list(mean = mu_pob_anterior, sd = error_est),
+    colour = "steelblue", alpha = 0.7, linewidth = 1)
+
+g <- g + ylab("")
+g <- g + scale_y_continuous(breaks = NULL)
+g <- g + scale_x_continuous(name = "Tiempo de procesamiento [ms]")
+g <- g + theme_pubr()
+
+# Colorear el área igual o menor que la media observada
+g <- g + geom_area(data = subset(muestra, x < mu_muestra_nueva), aes(y = y),
+    colour = "steelblue", fill = "steelblue", alpha = 0.7)
+
+# Agregar una línea vertical para el valor nulo
+g <- g + geom_vline(aes(xintercept = mu_pob_anterior),
+    color = "skyblue1", alpha = 0.7, linetype = 1)
+
+# Mostrar el gráfico obtenido
+print(g)
+
+# Calcular el valor Z para la muestra
+Z <- (mu_muestra_nueva - mu_pob_anterior) / error_est
+
+# Calcular y mostrar el valor p
+p_1 <- pnorm(Z, lower.tail = TRUE)
+cat("valor p: ", p_1, "\n")
+
+# También se puede calcular el valor p directamente
+p_2 <- pnorm(mu_muestra_nueva, mean = mu_pob_anterior, sd = error_est)
+cat("valor p: ", p_2, "\n")
+
+
+```

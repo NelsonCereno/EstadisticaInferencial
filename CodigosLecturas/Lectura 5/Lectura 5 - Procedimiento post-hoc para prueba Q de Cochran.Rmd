@@ -1,0 +1,71 @@
+---
+title: "Lectura 5 - Procedimiento post-hoc para prueba Q de Cochran"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+
+library(dplyr)
+library(rcompanion)
+library(RVAideMemoire)
+library(tidyr)
+
+# Crear la matriz de datos
+instancia <- 1:15
+annealing <- c(0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0)
+genetico <- c(1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1)
+hormigas <- c(0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+datos_anchos <- data.frame(instancia, annealing, hormigas, genetico)
+
+# Llevar la matriz de datos a formato largo
+datos_largos <- datos_anchos |>
+  pivot_longer(c("annealing", "hormigas", "genetico"),
+               names_to = "metaheuristica", values_to = "resultado") |>
+  mutate_at(c("instancia", "metaheuristica"), as.factor)
+
+# Definir condiciones y el nivel de significación
+minimo_tamaño_muestra <- 24
+alfa <- 0.05
+
+# Calcular el tamaño de la muestra y realizar la prueba Q de Cochran
+N <- nrow(datos_anchos[, -1]) * ncol(datos_anchos[, -1])
+prueba_qc <- cochran.qtest(resultado ~ metaheuristica | instancia,
+                           data = datos_largos, alpha = alfa)
+
+# Mostrar el tamaño de la muestra y el resultado de la prueba global
+cat("Prueba ómnibus:\n")
+cat("==========\n")
+cat("Tamaño de la muestra:", N, " ")
+cat(ifelse(N > minimo_tamaño_muestra, "> ", "< "))
+cat(minimo_tamaño_muestra, "\n")
+cat("\nResultado de la prueba Q de Cochran:\n")
+cat("---")
+print(prueba_qc)
+
+```
+
+
+```{r}  
+# Realizar procedimiento post-hoc si corresponde
+if(prueba_qc[["p.value"]] < alfa) {
+  # Aplicar procedimiento post-hoc con corrección de Holm
+  post_hoc_1 <- pairwiseMcnemar(resultado ~ metaheuristica | instancia,
+                                data = datos_largos,
+                                test = "mcnemar", correct = FALSE, method = "holm")
+  # Aplicar procedimiento post-hoc con corrección de Benjamini y Yekutieli
+  post_hoc_2 <- pairwiseMcnemar(resultado ~ metaheuristica | instancia,
+                                data = datos_largos,
+                                test = "mcnemar", correct = FALSE, method = "BY")
+  # Mostrar el resultado de los procedimientos post-hoc realizados
+  cat("\n\nProcedimiento post-hoc:\n")
+  cat("==========\n")
+  cat("\nProcedimiento post-hoc con ajuste de Holm\n")
+  cat("---\n")
+  print(post_hoc_1)
+  cat("Procedimiento post-hoc con ajuste Benjamini y Yekutieli\n")
+  cat("---\n")
+  print(post_hoc_2)
+}
+
+```  

@@ -1,0 +1,33 @@
+---
+title: "Lectura 5 - Prueba de McNemar"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+
+# Construir la tabla de contingencia
+estudiante <- seq(1:25)
+modelo_1 <- c(rep("Correcto", 16), rep("Incorrecto", 9))
+modelo_2 <- c(rep("Correcto", 9), rep("Incorrecto", 11), rep("Correcto", 5))
+datos <- data.frame(estudiante, modelo_2, modelo_1)
+tabla <- table(modelo_2, modelo_1)
+
+# Mostrar la tabla
+cat("Tabla de contingencia:\n")
+cat("---\n")
+print(tabla)
+
+# Aplicar la prueba de McNemar a la tabla y mostrarla
+prueba_1 <- mcnemar.test(tabla, correct = FALSE)
+cat("\nPrueba de McNemar usando la tabla de contingencia:\n")
+cat("---")
+print(prueba_1)
+
+# Pero también se puede aplicar directamente a las muestras
+prueba_2 <- mcnemar.test(modelo_2, modelo_1, correct = FALSE)
+cat("Prueba de McNemar usando directamente las muestras:\n")
+cat("---")
+print(prueba_2)
+
+```

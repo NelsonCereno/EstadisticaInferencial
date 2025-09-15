@@ -1,0 +1,81 @@
+---
+title: "Lectura 4 - Graficación del tamaño del efecto"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+library(ggpattern)
+library(ggpubr)
+
+# Definir los valores fijados en el enunciado
+n <- 36
+alfa <- 0.05
+media_nula <- 60
+sigma <- 12
+
+# Calcular el error estándar
+SE <- sigma / sqrt(n)
+
+# Gráficar la distribución muestral de las medias si la hipótesis nula fuera verdadera
+g_x_limites <- media_nula + c(-6.9, 5) * SE
+g <- ggplot() + xlim(g_x_limites) + ylim(c(0, 0.22))
+g <- g + labs(title = "Distribución muestral de las medias")
+g <- g + labs(x = "Tiempo de ejecución [s]", y = "Densidad")
+g <- g + theme_pubr()
+
+# Agregamos la hipótesis nula
+dist_0 <- stat_function(fun = dnorm, geom = "area",
+    args = list(mean = media_nula, sd = SE),
+    colour = "steelblue4", fill = "steelblue4", alpha = 0.2)
+
+g1 <- g + dist_0
+g1 <- g1 + geom_vline(xintercept = media_nula, colour = "steelblue4")
+
+# Calcular y colorear las regiones críticas de la hipótesis nula
+z_critic_inferior <- qnorm(alfa/2, mean = media_nula, sd = SE, lower.tail = TRUE)
+z_critic_superior <- qnorm(alfa/2, mean = media_nula, sd = SE, lower.tail = FALSE)
+
+g2 <- g1 + stat_function(fun = dnorm, geom = "area",
+    args = list(mean = media_nula, sd = SE),
+    xlim = c(g_x_limites[1], z_critic_inferior),
+    fill = "steelblue4", alpha = 0.4)
+
+g2 <- g2 + stat_function(fun = dnorm, geom = "area",
+    args = list(mean = media_nula, sd = SE),
+    xlim = c(z_critic_superior, g_x_limites[2]),
+    fill = "steelblue4", alpha = 0.4)
+
+# Mostrar el gráfico
+print(g2)
+
+
+
+```
+
+
+```{r}
+# Definir los valores verdaderos, usualmente desconocidos
+media_verdadera <- 55.6
+delta <- media_nula - media_verdadera
+
+# Agregar la verdadera distribución muestral de las medias
+g3 <- g2 + stat_function(fun = dnorm, geom = "area", 
+    args = list(mean = media_verdadera, sd = SE),
+    colour = "steelblue1", fill = "steelblue1", alpha = 0.2)
+g3 <- g3 + geom_vline(xintercept = media_verdadera, colour = "steelblue1")
+
+# Agregar anotación del tamaño del efecto y mostrar el gráfico resultante
+x_ann <- c(media_verdadera, media_nula)
+y_ann <- c(dnorm(media_verdadera, mean = media_verdadera, sd = SE),
+           dnorm(media_nula, mean = media_nula, sd = SE))
+y_ann <- y_ann + 0.005
+g4 <- g3 + annotate("segment", x = x_ann[1], y = y_ann[1], 
+                    xend = x_ann[2], yend = y_ann[2],
+                    arrow = arrow(angle = 10, length = unit(0.03, "npc"),
+                    ends = "both", type = "open"))
+g4 <- g4 + annotate("text", x = sum(x_ann)/2, y = y_ann[1] + 0.015,
+                    label = "delta", vjust = "top", parse = TRUE)
+print(g4)
+
+```

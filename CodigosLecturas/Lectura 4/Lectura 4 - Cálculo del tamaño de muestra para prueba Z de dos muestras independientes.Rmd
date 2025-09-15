@@ -1,0 +1,35 @@
+---
+title: "Lectura 4 - Cálculo del tamaño de muestra para prueba Z de dos muestras independientes"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+
+library(ggpubr)
+library(pwr)
+library(tidyr)
+
+# Definir los valores de las hipótesis
+alfa <- 0.05
+poder <- 0.90
+
+media_L <- 60
+sigma_L <- sqrt(144)
+
+media_M <- 70
+sigma_M <- sqrt(196)
+
+# Calcular tamaño del efecto (usando desviación estándar agrupada)
+delta <- media_L - media_M
+sigma_agrupado <- sqrt(2 * (sigma_L ** 2 + sigma_M ** 2))
+delta_normalizado <- delta / sigma_agrupado
+
+# Calcular y mostrar tamaño de cada muestra
+factores <- pwr.norm.test(d = delta_normalizado, sig.level = alfa,
+    power = poder, alternative = "less")
+
+print(factores)
+cat("Número total de observaciones:", ceiling(factores[["n"]]), "\n")
+
+```

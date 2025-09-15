@@ -1,0 +1,59 @@
+---
+title: "Lectura 6 - Procedimiento ANOVA usando ezANOVA()"
+output: html_document
+date: "2025-09-15"
+---
+```{r}
+library(DescTools)
+library(tidyr)
+library(dplyr)
+library(ez)
+library(ggpubr)
+
+# Crear la matriz de datos en formato ancho
+A <- c(23, 19, 25, 23, 20)
+B <- c(26, 24, 28, 23, 29)
+C <- c(19, 24, 20, 21, 17)
+datos_anchos <- data.frame(A, B, C)
+
+# Llevar la matriz a formato largo
+datos_largos <- datos_anchos |>
+  pivot_longer(c("A", "B", "C"), names_to = "Algoritmo", values_to = "Tiempo") |>
+  mutate(Instancia = factor(1:n())) |>
+  mutate(Algoritmo = factor(Algoritmo))
+
+# Comprobar la condición de normalidad con gráficos Q-Q
+g1 <- ggqqplot(datos_largos, x = "Tiempo", y = "Algoritmo", color = "Algoritmo", alpha = 0.7,
+               palette = c("steelblue", "steelblue1", "steelblue4"))
+g1 <- g1 + facet_wrap(~ Algoritmo)
+g1 <- g1 + rremove("x.ticks") + rremove("x.text")
+g1 <- g1 + rremove("y.ticks") + rremove("y.text")
+g1 <- g1 + rremove("axis.title")
+print(g1)
+```
+
+
+```{r}
+
+# Realizar y mostrar el procedimiento ANOVA con aov()
+prueba_aov <- aov(Tiempo ~ Algoritmo, data = datos_largos)
+cat("Procedimiento ANOVA usando aov\n")
+cat("---\n")
+print(summary(prueba_aov))
+
+
+```
+
+
+```{r}
+# Realizar y mostrar el procedimiento ANOVA con ezANOVA()
+prueba_ez <- ezANOVA(data = datos_largos, dv = Tiempo, between = Algoritmo, 
+                     wid = Instancia, return_aov = TRUE, detailed = TRUE)
+
+cat("\nProcedimiento ANOVA usando ezANOVA\n")
+cat("---\n")
+print(prueba_ez)
+
+
+
+```

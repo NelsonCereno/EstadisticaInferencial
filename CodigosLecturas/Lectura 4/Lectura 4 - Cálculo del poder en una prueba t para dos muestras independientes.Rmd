@@ -1,0 +1,46 @@
+---
+title: "Lectura 4 - Cálculo del poder en una prueba t para dos muestras independientes
+  con tamaños diferentes"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+
+library(effsize)
+library(pwr)
+
+# Valores L*
+muestra_L <- c(50916.01, 68274.39, 60212.33, 57973.14, 74787.28, 61396.89,
+               72907.14, 55807.43, 61142.34, 61986.08, 69704.93, 73718.12,
+               70488.12, 61836.25, 71255.53, 61133.57, 57702.44, 79472.14,
+               69546.98, 56296.91, 79657.66, 52530.76, 64012.86, 75995.01,
+               53014.13, 69883.13, 62638.55, 87312.34, 47351.77, 66807.14)
+n_L <- length(muestra_L)
+
+# Valores M*
+muestra_M <- c(95075.86, 64758.71, 80269.73, 74365.69, 86104.68,
+               41772.91, 116915.74, 33103.66, 61553.61, 55498.10,
+               73996.43, 101619.51, 61037.45, 53973.06, 65523.67,
+               69378.84, 80254.29, 84242.37, 91978.80, 73853.76,
+               98268.72, 61785.34, 59753.93, 66855.87, 101783.46)
+n_M <- length(muestra_M)
+
+# Obtener y mostrar tamaño del efecto
+tamaño_efecto <- cohen.d(muestra_L, muestra_M)
+cat("Tamaño del efecto:\n")
+print(tamaño_efecto)
+
+# Obtener y mostrar poder de la prueba realizada
+d_de_Cohen <- tamaño_efecto[["estimate"]]
+alfa <- 0.05
+valor_nulo <- 10
+factores <- pwr.t2n.test(n1 = n_L, n2 = n_M, d = d_de_Cohen,
+                         sig.level = alfa, alternative = "less")
+cat("Factores de la prueba:\n")
+print(factores)
+
+# Mostrar probabilidad de error tipo II
+cat("Beta:", 1 - factores[["power"]], "\n")
+
+```

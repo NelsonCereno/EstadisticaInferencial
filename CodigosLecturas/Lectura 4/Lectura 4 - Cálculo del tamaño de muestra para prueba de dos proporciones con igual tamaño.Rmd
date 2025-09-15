@@ -1,0 +1,17 @@
+---
+title: "Lectura 4 - Cálculo del tamaño de muestra para prueba de dos proporciones con igual tamaño"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+library(ggpubr)
+library(pwr)
+
+factores <- pwr.2p.test(h = ES.h(0.18, 0.13), 
+                        alternative = "greater", 
+                        power = 0.80, 
+                        sig.level = 0.05)
+plot(factores) + theme_pubr()
+
+```

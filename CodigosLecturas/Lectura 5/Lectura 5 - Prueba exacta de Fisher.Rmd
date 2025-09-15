@@ -1,0 +1,30 @@
+---
+title: "Lectura 5 - Prueba exacta de Fisher"
+output: html_document
+date: "2025-09-15"
+---
+
+```{r}
+
+# Construir los datos y la tabla de contingencia
+Vacuna <- c(rep("Argh", 6), rep("Grrr", 11))
+Resultado <- c(rep("Humano", 12), rep("Vampiro", 5))
+Resultado <- factor(Resultado, levels = c("Vampiro", "Humano"))
+datos <- data.frame(Resultado, Vacuna)
+tabla <- xtabs(~ Resultado + Vacuna, datos)
+print(tabla)
+
+# Aplicar la prueba exacta de Fisher a la tabla de contingencia
+fisher_1 <- fisher.test(tabla)
+cat("\n")
+cat("Prueba exacta de Fisher usando la tabla de contingencia\n")
+cat("---\n")
+print(fisher_1)
+
+# Aplicar la prueba exacta de Fisher directamente a las muestras
+fisher_2 <- fisher.test(Vacuna, Resultado)
+cat("Prueba exacta de Fisher usando las muestras:\n")
+cat("---\n")
+print(fisher_2)
+
+```
