@@ -1,0 +1,67 @@
+---
+title: "EP 1 Pregunta 4"
+output: html_document
+date: "2025-10-07"
+---
+
+
+¿Son similares los ingresos registrados en las diferentes provincias de la RM?
+
+```{r}
+
+library(dplyr)
+
+datos <- read.csv2("EP01 Datos Casen 2017.csv")
+datos[["ytot"]] <- datos[["ytot"]] / 1000
+datos_agrupados <- group_by(datos, provincia)
+
+contigencia <- table(datos[["provincia"]])
+print(contigencia)
+
+
+```
+
+Nuevamente, como tenemos un vs entre una variable categorica y una numerica, como lo son provincia e ingresos respectivamente, utilizaremos un grafico de cajas por grupos.
+
+```{r}  
+
+library(ggpubr)
+
+g <- ggboxplot(datos, x= "provincia", y = "ytot", title = "Ingresos por provincia",
+               xlab = "Provincia", ylab = "Ingreso (miles de pesos)",
+               fill = "provincia", alpha = 0.7, legend = "none",
+               palette = c("lightblue", "pink", "lightgreen", "orange", "purple", "yellow"))
+
+g <- g + scale_y_log10()
+
+print(g)
+
+
+
+```
+
+
+```{r}
+
+library(dplyr)
+library(knitr)
+
+estadisticas_provincia <- datos_agrupados %>%
+  group_by(provincia) %>%
+  summarise(
+    numero_muestras = n(),
+    media_ingreso = mean(ytot),
+    mediana_ingreso = median(ytot),
+    desviacion = sd(ytot),
+    min_ingreso = min(ytot),
+    max_ingreso = max(ytot)
+  )
+
+kable(estadisticas_provincia)
+
+
+```
+
+
+Los ingresos de la población adulta de cada provincia de la RM muestra una fuerte asimetría positiva. Si bien no hay grandes diferencias entre ellas, los ingresoslas en las provincias de Talagante y Melipilla se concentran en rangos levemente más bajos (aproximadamente $146 mil a $467 mil y $140 mil a $400 mil, respectivamente), mientras que la provincia de Santiago muestra rangos levemente superiores (de $189 mil a $552 mil aproximadamente).
+

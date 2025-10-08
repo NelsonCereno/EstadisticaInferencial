@@ -1,0 +1,68 @@
+---
+title: "EP 1 Pregunta 1"
+output: html_document
+date: "2025-10-07"
+---
+
+¿Se encuestaron más o menos la misma cantidad de gente en cada provincia de la RM?
+
+```{r}
+library(dplyr)
+
+datos <- read.csv2("EP01 Datos Casen 2017.csv")
+
+datos_agrupados <- group_by(datos, provincia)
+
+contigencia <- table(datos[["provincia"]])
+print(contigencia)
+
+total <- marginSums(contigencia)
+print(total)
+
+
+```
+Como "provincia" es una variable categorica nominal, los gráficos de histograma o de caja no servirían en este caso (según lectura sirven para variables numéricas). En su lugar, se puede utilizar un gráfico de barras o de torta para visualizar la cantidad de encuestados en cada provincia.
+
+Grafico de barras
+```{r}
+library(ggpubr)
+
+contingencia_para_grafico = as.data.frame(xtabs(~ provincia, data = datos))
+
+
+g <- ggbarplot(contingencia_para_grafico, x = "provincia", y = "Freq", title = "Cantidad de encuestados por provincia",
+               xlab = "Provincia", ylab = "Frecuencia",
+               color = "provincia", fill = "provincia",
+               alpha = 0.7, palette = c("red", "blue", "green", "purple", "orange", "pink"))
+
+print(g)
+
+
+
+```
+
+Grafico de torta
+```{r}
+library(ggpubr)
+
+contingencia_para_grafico = as.data.frame(xtabs(~ provincia, data = datos))
+
+
+g <- ggpie(contingencia_para_grafico,x = "Freq", title = "Cantidad de encuestados por provincia", label = "provincia",
+               xlab = "Provincia", ylab = "Frecuencia",
+               color = "provincia", fill = "provincia",
+               alpha = 0.7, palette = c("red", "blue", "green", "purple", "orange", "pink"),
+           lab.font = c(3, "plain", "black"), lab.pos = "out")
+
+print(g)
+
+
+
+```
+
+Observando ambos gráficos obtenidos a partir de la variable categórica "provincia", se puede determinar y concluir que claramente no se entrevistaron la misma cantidad de personas en cada provincia, esto igual se puede observar a partir de la tabla de contingencia obtenida anteriormente.
+
+
+
+
+

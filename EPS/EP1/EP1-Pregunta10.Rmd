@@ -1,0 +1,42 @@
+---
+title: "EP 1 Pregunta 10"
+output: html_document
+date: "2025-10-08"
+---
+Los ingresos de los habitantes de la RM, ¿van incrementándose con la edad de forma similar en hombres y mujeres?
+```{r}
+
+library(dplyr)
+datos <- read.csv2("EP01 Datos Casen 2017.csv")
+
+datos_mujeres <- filter(datos, sexo == "Mujer")
+datos_hombres <- filter(datos, sexo == "Hombre")
+
+
+```
+
+Ahora realizaremos un gráfico de dispersión entre ytot y edad para hombres y mujeres
+
+```{r}
+library(ggpubr)
+g1 <- ggscatter(datos_mujeres, x = "edad", y = "ytot",
+               title = "Ingresos vs Edad en mujeres",
+               xlab = "Edad", ylab = "Ingreso",
+               color = "blue", alpha = 0.7,
+               )
+
+g1 <- g1 + scale_y_log10()
+
+g2 <- ggscatter(datos_hombres, x = "edad", y = "ytot",
+                title = "Ingresos vs Edad en hombres",
+                xlab = "Edad", ylab = "Ingreso",
+                color = "red", alpha = 0.7,
+)
+
+g2 <- g2 + scale_y_log10()
+ggarrange(g1, g2, ncol = 2, nrow = 1)
+
+```
+
+
+Como podemos observar en los gráficos de dispersión, ambos géneros muestran una tendencia similar en la relación entre ingresos y edad. En ambos casos, los ingresos tienden a aumentar con la edad hasta cierto punto, alcanzando un pico alrededor de los 40 a 50 años, y luego comienzan a disminuir ligeramente en edades más avanzadas. Sin embargo, los hombres tienden a tener ingresos más altos que las mujeres en todas las edades, lo que indica una brecha salarial de género persistente. La dispersión de los puntos sugiere que hay variabilidad en los ingresos dentro de cada grupo de edad para ambos géneros.

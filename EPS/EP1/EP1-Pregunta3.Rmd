@@ -1,0 +1,53 @@
+---
+title: "EP 1 Pregunta 3"
+output: html_document
+date: "2025-10-07"
+---
+
+
+¿Se distribuye de igual manera la situación ocupacional de los hombres que viven en áreas rurales y quienes viven en áreas urbanas de la RM?
+
+```{r}
+
+library(dplyr)
+
+datos <- read.csv2("EP01 Datos Casen 2017.csv")
+
+datos_agrupados <- group_by(datos, zona)
+datos_agrupados_zonahombres <- filter(datos_agrupados, sexo == "Hombre")
+datos_agrupados_zonahombres
+ 
+contigencia <- table(datos_agrupados_zonahombres[["zona"]])
+print(contigencia)
+
+```
+
+```{r}
+contigencia_ch1 <- table(datos_agrupados_zonahombres[["ch1"]])
+print(contigencia_ch1)
+
+
+```
+Como podemos observar, contamos con 2 variables categóricas nominales, las cuales son "zona" y "ch1". Por lo tanto, podemos utilizar un gráfico de barras apiladas, agrupadas, estandarizadas o un gráfico de mosaico para visualizar la distribución conjunta de estas dos variables.
+
+
+Grafico de barras apiladas
+```{r}
+library(ggpubr)
+
+tabla <- xtabs(~ zona + ch1, data = datos_agrupados_zonahombres)
+contigencia_tabla <- as.data.frame(tabla)
+
+g1 <- ggbarplot(contigencia_tabla, x = "zona", y = "Freq", title = "Situacion ocupacional por zona", position = position_dodge2(),
+                ylab = "Frecuencia", fill = "ch1", alpha = 0.7,
+                palette = c("lightblue", "pink", "lightgreen", "orange"))
+
+print(g1)
+
+
+
+
+
+
+```
+Al realizar el analisis gráfico, se puede observar que no se distribuyen de igual manera la situación ocupacional de los hombres en las distintas zonas. Ambas tienden a tener más datos en asalariados en base a su frecuencia. Esto se nota mucho más en la zona urbana que en la zona rural.

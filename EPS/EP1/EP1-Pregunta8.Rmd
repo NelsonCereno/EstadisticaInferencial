@@ -1,0 +1,35 @@
+---
+title: "EP 1 Pregunta 8"
+output: html_document
+date: "2025-10-08"
+---
+¿Cómo diría que es el ingreso de las mujeres de la RM? (simétrico/asimétrico, concentrado/disperso, unimodal/multimodal, etc.)
+```{r}
+
+library(dplyr)
+
+datos <- read.csv2("EP01 Datos Casen 2017.csv")
+datos_mujeres <- filter(datos, sexo == "Mujer")
+
+
+
+```
+
+Ahora realizaremos un histograma para observar la distribución de los ingresos de los hombres en la RM.
+```{r}
+library(ggpubr)
+
+
+g <- gghistogram(datos_mujeres, x = "ytot", title = "Histograma de ingresos en mujeres",
+                 xlab = "Ingreso", ylab = "Frecuencia",
+                 fill = "blue", alpha = 0.7, color= "steelblue", add = "mean")
+
+
+print(g)
+
+
+
+
+```
+
+Como podemos observar en el histograma, la distribución de los ingresos de los mujeres en la RM es asimétrica hacia la derecha (sesgo positivo), ya que hay una cola más larga en el lado derecho del histograma. Esto indica que hay algunas mujeres con ingresos significativamente más altos que la mayoría.

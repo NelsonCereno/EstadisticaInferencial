@@ -1,0 +1,27 @@
+---
+title: "EP 1 Pregunta 7"
+output: html_document
+date: "2025-10-08"
+---
+¿Tiene relación el ingreso de las mujeres de la RM con el riqueza del municipio donde habita?
+```{r}
+
+library(dplyr)
+
+library(ggpubr)
+datos <- read.csv2("EP01 Datos Casen 2017.csv")
+datos_mujeres <- filter(datos, sexo == "Mujer")
+
+g <- ggscatter(datos_mujeres, x = "ing.comuna", y = "ytot",
+               title = "Ingresos vs Edad en mujeres",
+               xlab = "Ranking Comuna", ylab = "Ingreso",
+               color = "blue", alpha = 0.7,
+               )
+
+g <- g + scale_y_log10()
+print(g)
+
+
+
+```
+Como podemos observar en el gráfico de dispersión, parece haber una relación positiva entre el ingreso de las mujeres y la riqueza del municipio donde habitan. A medida que el ranking de la comuna aumenta (indicando mayor riqueza), los ingresos de las mujeres tienden a ser más altos. Sin embargo, la dispersión de los puntos sugiere que esta relación no es perfecta y hay variabilidad en los ingresos dentro de cada nivel de riqueza del municipio.

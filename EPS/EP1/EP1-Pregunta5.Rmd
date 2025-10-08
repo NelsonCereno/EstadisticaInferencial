@@ -1,0 +1,39 @@
+---
+title: "EP 1 Pregunta 5"
+output: html_document
+date: "2025-10-08"
+---
+¿Van los ingresos de las mujeres de la RM incrementándose con la edad?
+```{r}
+
+library(dplyr)
+
+datos <- read.csv2("EP01 Datos Casen 2017.csv")
+datos_mujeres <- filter(datos, sexo == "Mujer")
+datos_ingresos <- datos_mujeres[["ytot"]] / 1000
+
+
+
+```
+
+
+Ahora realizaremos un gráfico de dispersión entre ytot y edad
+```{r}
+library(ggpubr)
+
+
+g <- ggscatter(datos_mujeres, x = "edad", y = "ytot",
+               title = "Ingresos vs Edad en mujeres",
+               xlab = "Edad", ylab = "Ingreso",
+               color = "blue", alpha = 0.7,
+               )
+
+g <- g + scale_y_log10()
+print(g)
+
+
+```
+
+
+Como podemos observar en el gráfico de dispersión, no hay una relación clara entre los ingresos y la edad de las mujeres en la RM. Los puntos están bastante dispersos y no muestran una tendencia evidente de aumento o disminución de los ingresos con la edad.
+

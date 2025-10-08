@@ -176,9 +176,9 @@ resultado3 <- t.test(x = tiempos_Sur,
 resultado3
 ```
 
-#### El valor p obtenido en la prueba t es de 1, que es mayor que el nivel de significancia comúnmente utilizado (α = 0.05). Por lo tanto, no se rechaza la hipótesis nula.
+#### El valor p obtenido en la prueba t es de 4.064e-09, que es mucho menor que el nivel de significancia (α = 0.05). Por lo tanto, se rechaza la hipótesis nula.
 
-#### No existe evidencia estadística suficiente para afirmar que, en promedio, los atletas de la zona Sur superen a los de la zona Centro-Norte por más de 1.3 segundos después del entrenamiento.
+#### Existe evidencia estadística suficiente para afirmar que, en promedio, la diferencia en los tiempos posteriores al entrenamiento entre atletas de la zona Sur y Centro-Norte es menor a 1.3 segundos.
 
 
 #### 4) ¿Será cierto que hay más atletas de la zona Centro-Norte que redujeron sus mejores marcas en al menos 2,6 segundos que atletas de la zona Sur que lo hicieron en al menos 1,5 segundos?

@@ -1,0 +1,39 @@
+---
+title: "EP 1 Pregunta 6"
+output: html_document
+date: "2025-10-08"
+---
+
+
+¿Cómo diría que es el ingreso de los hombres de la RM? (simétrico/asimétrico, concentrado/disperso, unimodal/multimodal, etc.)
+
+```{r}
+
+library(dplyr)
+
+datos <- read.csv2("EP01 Datos Casen 2017.csv")
+datos_hombres <- filter(datos, sexo == "Hombre")
+
+
+
+```
+
+Ahora realizaremos un histograma para observar la distribución de los ingresos de los hombres en la RM.
+```{r}
+library(ggpubr)
+
+
+g <- gghistogram(datos_hombres, x = "ytot", title = "Histograma de ingresos en hombres",
+                 xlab = "Ingreso", ylab = "Frecuencia",
+                 fill = "blue", alpha = 0.7, color= "steelblue", add = "mean")
+
+
+print(g)
+
+
+
+
+```
+
+Como podemos observar en el histograma, la distribución de los ingresos de los hombres en la RM es asimétrica hacia la derecha (sesgo positivo), ya que hay una cola más larga en el lado derecho del histograma. Esto indica que hay algunos hombres con ingresos significativamente más altos que la mayoría.
+

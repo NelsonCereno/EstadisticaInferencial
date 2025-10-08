@@ -1,0 +1,63 @@
+---
+title: "EP 1 Pregunta 2"
+output: html_document
+date: "2025-10-07"
+---
+
+
+¿Tienen hombres y mujeres ingresos similares en la RM?
+```{r}
+
+library(dplyr)
+
+datos <- read.csv2("EP01 Datos Casen 2017.csv")
+
+datos_agrupados <- group_by(datos, sexo)
+
+contigencia <- table(datos[["sexo"]])
+print(contigencia)
+
+contigencia_region <- table(datos[["region"]])
+print(contigencia_region)
+
+total <- marginSums(contigencia)
+print(total)
+
+
+```
+Como tenemos la variable categórica "sexo" frente a una variable numérica que es "ingresos" aplicaremos un grafico de cajas por grupos. Si fuese una cantidad de observaciones pequeñas, una buena opción sería el gráfico de tiras
+
+```{r}
+
+library(ggpubr)
+
+g <- ggboxplot(datos, x= "sexo", y = "ytot", title = "Ingresos por sexo",
+               xlab = "Sexo", ylab = "Ingreso",
+               fill = "sexo", alpha = 0.7, legend = "none",
+               palette = c("lightblue", "pink"))
+
+g <- g + scale_y_log10()
+
+print(g)
+
+
+
+
+
+```
+
+Según el gráfico de caja obtenido, podemos notar que la caja de los hombres está más arriba que el de la mujer, lo cual nos señala que efectivamente los hombres tienen sueldos más altos que el de las mujeres. Si analizamos las cajas por separados, podemos observar que la variabilidad de la caja de los hombres es mucho mayor que el de las mujeres, esto se debe a que la caja es más delgada y tiene más outliers. Ya si queremos verificar en base a datos podemos obtener la media y la mediana.
+
+```{r}  
+library(dplyr)
+datos %>%
+  group_by(sexo) %>%
+  summarise(
+    count = n(),
+    mean = mean(ytot, na.rm = TRUE),
+    median = median(ytot, na.rm = TRUE),
+    sd = sd(ytot, na.rm = TRUE)
+  )
+
+```
+Con esto podemos observar que la media de los hombres es mayor que la de las mujeres, y lo mismo ocurre con la mediana. Por lo tanto, podemos concluir que los hombres tienen ingresos mayores que las mujeres en la Región Metropolitana.

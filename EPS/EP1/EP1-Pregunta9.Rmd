@@ -1,0 +1,36 @@
+---
+title: "EP 1 Pregunta 9"
+output: html_document
+date: "2025-10-08"
+---
+
+
+
+El nivel de ingreso de las mujeres de la RM ¿varía con el estado civil?
+```{r}
+
+library(dplyr)
+datos <- read.csv2("EP01 Datos Casen 2017.csv")
+
+datos_mujeres <- filter(datos, sexo == "Mujer")
+
+
+```
+
+Como estado civil es una variable categórica, realizaremos un diagrama de cajas para observar la variación de los ingresos de las mujeres según su estado civil.
+
+```{r}
+library(ggpubr)
+g <- ggboxplot(datos_mujeres, x = "ecivil", y = "ytot",
+               title = "Ingresos vs Estado Civil en mujeres",
+               xlab = "Estado Civil", ylab = "Ingreso",
+               color = "blue", alpha = 0.7,
+               )
+
+g <- g + scale_y_log10()
+print(g)
+```
+
+
+
+Como podemos observar en el diagrama de cajas, el nivel de ingreso de las mujeres en la RM varía según su estado civil. Las mujeres casadas tienden a tener ingresos más altos en comparación con las mujeres solteras, viudas o separadas. Además, las mujeres casadas muestran una mayor dispersión en sus ingresos, lo que indica una mayor variabilidad en esta categoría. En contraste, las mujeres solteras tienen ingresos más bajos y menos dispersos. Esto sugiere que el estado civil puede influir en el nivel de ingresos de las mujeres en la RM.
