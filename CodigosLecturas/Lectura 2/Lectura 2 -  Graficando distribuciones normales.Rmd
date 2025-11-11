@@ -34,7 +34,7 @@ g <- ggline(datos_norm, "x", "y", numeric.x.axis = TRUE, plot_type = "l",
     color = "ejemplo")
 
 # Desplegar las leyendas usando LaTeX
-colores <- c("steelblue", "steelblue1", "steelblue3", "steelblue4")
+colores <- c("red", "blue", "green", "brown")
 g <- ggpar(g, legend = c(0.8, 0.7))
 g <- ggpar(g, legend.title = "Distribución")
 g <- ggpar(g, font.legend = c(10, "plain", "black"))
