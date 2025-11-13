@@ -4,26 +4,219 @@ output: html_document
 date: "2025-11-10"
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r}
+
+library(dplyr)
+library(ggpubr)
+
+datos <- read.csv2("EP02 Datos.csv")
+
+
+
+
+```
+El Comité Olímpico cree que el mejor tiempo medio de los atletas de la zona Sur después de ingresar al programa de entrenamiento es superior a 12,4 segundos. ¿Soportan los datos esta afirmación?
+
+```{r}
+#Filtrado de datos
+
+datos_zona_sur <- filter(datos, Zona == "Sur")
+#Contar datos con Zona  == "Sur"
+n_datos_sur <- nrow(datos_zona_sur)
+
 ```
 
-## R Markdown
+H0: El tiempo medio despues del programa es igual a 12.4 segundos (μ = 12.4)
+HA: El tiempo medio despues del programa es mayor a 12.4 segundos (μ > 12.4)
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Como los datos obtenidos anteriormente nos dicen que la muestra es menor a 30 observaciones, además de que no nos entregan la desviación estandar de la población, no podemos utilizar prueba Z. En este caso hay que recurrir a una prueba T de Student para una muestra.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+La condicion de independencia de observaciones se cumple, ya que los datos fueron recolectados de diferentes atleta y además de que el resultados de un atleta no afectan a los resultados de otro atleta. 
 
-```{r cars}
-summary(cars)
+Para la condición de normalidad, podemos realizar una prueba de Shapiro-Wilk, ya que la muestra es menor a 30 observaciones.
+```{r}
+
+shapiro_test <- shapiro.test(datos_zona_sur$Posterior)
+shapiro_test
+ggqqplot(datos_zona_sur, x="Posterior")
+
+
+
+
 ```
 
-## Including Plots
+Como se probaron las condiciones y todas estas se cumplieron, podemos proceder a realizar una prueba T de Student para una muestra
 
-You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+
+t_test <- t.test(datos_zona_sur$Posterior, mu = 12.4, alternative = "greater")
+t_test
+
+```
+Como el p value es de 0.27, con un nivel de significancia de 0.05, no se rechaza la hipótesis nula. Por lo tanto, no hay suficiente evidencia para apoyar la afirmación del Comité Olímpico de que el tiempo medio de los atletas de la zona Sur después de ingresar al programa de entrenamiento es superior a 12.4 segundos.
+
+
+-------------------------------------------------------------------------------------------------------------------------
+¿Sugieren los datos que la mejor marca de los atletas de la zona Centro-Norte se reduce en promedio 3,5 segundos tras el entrenamiento?
+
+```{r}
+#Filtrado de datos
+datos_zona_centro_norte <- filter(datos, Zona == "Centro-Norte")
+
+datos_zcn_previo <- datos_zona_centro_norte$Previo
+datos_zcn_posterior <- datos_zona_centro_norte$Posterior
+
+diferencia <- datos_zcn_previo - datos_zcn_posterior
+
+
+
+```
+H0: La mejor marca no se reduce en promedio 3.5 segundos
+HA: La mejor marca se reduce en promedio 3.5 segundos  
+
+Verificamos cuantas observaciones hay en la muestra
+```{r}
+
+cantidad_muestra <- summary(datos_zona_centro_norte)
+cantidad_muestra
+
+```
+Como la muestra es menor a 30 y no nos dan al desviacion estandar, no podemos utilizar la prueba Z, por lo que debemos proceder con prueba t.
+
+Ahora verificamos las condiciones para poder realizar una prueba t de Student de muestras pareadas
+
+Condición de independencia: Se cumple, ya que los datos fueron recolectados de diferentes atletas y el resultado de un atleta no afecta el resultado de otro atleta.
+
+Condicion de escala de razon: Se cumple, ya que los datos son tiempos medidos en segundos.
+
+Condicion de normalidad: Podemos realizar una prueba de Shapiro-Walk para verificar la normalidad de las diferencias
+
+```{r}
+
+shapiro_test_diferencia <- shapiro.test(diferencia)
+shapiro_test_diferencia
+
+ggqqplot(diferencia)
+
+```
+Como se probaron las condiciones y todas estas se cumplieron, podemos proceder a realizar una prueba T de Student para muestras pareadas
+
+```{r}
+
+t_test_pareada <- t.test(datos_zcn_previo, datos_zcn_posterior, paired = TRUE, mu = 3.5, alternative = "less")
+t_test_pareada
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Como el p value es de 6.997e-05, con un nivel de significancia de 0.05, se rechaza la hipótesis nula. Por lo tanto, hay suficiente evidencia para sugerir que la mejor marca de los atletas de la zona Centro-Norte se reduce en promedio 3.5 segundos tras el entrenamiento.
+
+-------------------------------------------------------------------------------------------------------------------------
+
+
+¿Es posible afirmar que, en promedio, los atletas de la zona Centro-Norte superaban a los de la zona Centro-Sur por menos de 3 segundos antes del entrenamiento?
+
+```{r}
+#Filtrado de datos
+datos_zona_centro_sur <- filter(datos, Zona == "Centro-Sur")
+datos_zcn_previo <- datos_zona_centro_norte$Previo
+datos_zcs_previo <- datos_zona_centro_sur$Previo
+
+datos_summary_sur <- summary(datos_zona_centro_sur)
+datos_summary_norte <- summary(datos_zona_centro_norte)
+datos_summary_sur
+datos_summary_norte
+```
+
+Como tenemos que verificar la media de tiempo previo al entrenamiento de muestras de 2 zonas distintas, podemos utilizar una prueba t de Student para muestras independientes.Además de que el tamaño de ambas muestras es inferior a 30 observaciones y tampoco muestra la desviación estándar de la población.
+
+H0: En promedio, los atletas de la zona Centro-Norte tienen la misma media que los de la zona Centro-Sur.
+HA: En promedio, los atletas de la zona Centro-Norte superaban a los de la zona Centro-Sur por menos de 3 segundos.
+
+
+Para esto analizaremos los datos existentes y verificaremos las condiciones necesarias para realizar la prueba t de Student para muestras independientes.
+
+
+Verificamos la condición de independencia: Se cumple, ya que los datos fueron recolectados de diferentes atletas y el resultado de un atleta no afecta el resultado de otro atleta.
+
+Para la condición de normalidad, podemos realizar una prueba de Shapiro-Wilk para ambas zonas
+
+
+```{r}
+shapiro_test_norte <- shapiro.test(datos_zcn_previo)
+shapiro_test_sur <- shapiro.test(datos_zcs_previo)
+shapiro_test_norte
+shapiro_test_sur
+
+
+
+
+
+```
+Como ambos valores son mayores a 0,05, se cumple la condición de normalidad.
+
+Realizamos los graficos de QQ plot para ambas zonas
+
+```{r}
+ggqqplot(datos_zcn_previo, title = "QQ Plot Zona Centro-Norte")
+ggqqplot(datos_zcs_previo, title = "QQ Plot Zona Centro-Sur")
+
+
+
+```
+
+Como se probaron las condiciones y todas estas se cumplieron, podemos proceder a realizar una prueba T de Student para muestras independientes
+
+```{r}
+
+t_test_independiente <- t.test(datos_zcn_previo, datos_zcs_previo, paired = FALSE, alternative = "less", mu = 3)
+t_test_independiente
+
+```
+Como el p value es de 2.2e-16, con un nivel de significancia de 0.05, se rechaza la hipótesis nula. Por lo tanto, es posible afirmar que, en promedio, los atletas de la zona Centro-Norte superaban a los de la zona Centro-Sur por menos de 3 segundos antes del entrenamiento.
+
+------------------------------------------------------------------------------------------------------------------------
+¿Será cierto que hay más atletas de la zona Centro-Sur que redujeron sus mejores marcas en al menos 4,3 segundos que atletas de la zona Sur que lo hicieron en al menos 1,4 segundos?
+
+
+```{r}
+#Manejo de datos
+
+diferencia_sur <- datos_zona_sur$Previo - datos_zona_sur$Posterior
+diferencia_centro_sur <- datos_zona_centro_sur$Previo - datos_zona_centro_sur$Posterior
+
+#Cantidad gente
+cantidad_sur <- summary(datos_zona_sur)
+cantidad_centro_sur <- summary(datos_zona_centro_sur)
+cantidad_sur #28
+cantidad_centro_sur #27
+
+mayoresDifSur <- sum(diferencia_sur >= 1.4)
+mayoresDifCentroSur <- sum(diferencia_centro_sur >= 4.3)
+
+mayoresDifSur
+mayoresDifCentroSur
+
+
+
+
+```
+H0: La proporción de atletas de la zona Centro-Sur que redujeron sus mejores marcas en al menos 4.3 segundos es menor o igual a la proporción de atletas de la zona Sur que lo hicieron en al menos 1.4 segundos.
+
+HA: La proporción de atletas de la zona Centro-Sur que redujeron sus mejores marcas en al menos 4.3 segundos es mayor a la proporción de atletas de la zona Sur que lo hicieron en al menos 1.4 segundos.
+
+
+```{r}
+
+#Utilizando el metodo de Wilson
+prop_test <- prop.test(x = c(mayoresDifCentroSur, mayoresDifSur),
+                       n = c(nrow(datos_zona_centro_sur), nrow(datos_zona_sur)),
+                       alternative = "greater",
+                       correct = FALSE)
+prop_test
+
+
+```
+
+Como el p value es de 0.0007013, 
+

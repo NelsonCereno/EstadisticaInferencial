@@ -26,8 +26,8 @@ sigma_agrupado <- sqrt(2 * (sigma_L ** 2 + sigma_M ** 2))
 delta_normalizado <- delta / sigma_agrupado
 
 # Calcular y mostrar tamaño de cada muestra
-factores <- pwr.norm.test(d = delta_normalizado, sig.level = alfa,
-    power = poder, alternative = "less")
+factores <- pwr.norm.test(d = delta_normalizado, n = 59, sig.level = alfa,
+     alternative = "less")
 
 print(factores)
 cat("Número total de observaciones:", ceiling(factores[["n"]]), "\n")
