@@ -1,0 +1,37 @@
+---
+title: "EP6 - Pregunta 9"
+output: html_document
+date: "2025-11-25"
+---
+Enunciado:
+Un equipo de investigadores del área de interacción humano-información está estudiando si el área temática y el nivel de dificultad del problema de información influyen en el tiempo (en segundos) que toma un usuario en formular una consulta de búsqueda para resolver dicho problema. Para ello, han reclutado a un grupo de participantes voluntarios, asignados aleatoriamente a distintos grupos. Cada participante debe resolver tres problemas de información con diferentes niveles de dificultad: baja, media y alta. A su vez, cada grupo debe resolver problemas relacionados a una temática diferente.
+
+
+En este momento, los investigadores buscan determinar si existen diferencias en el tiempo que tardan los usuarios en formular consultas para problemas con diferente nivel de dificultad en el área de arquitectura.
+```{r}
+
+library(dplyr)
+library(ggpubr)
+library(ez)
+datos <- read.csv("EP06 Datos.csv")
+
+#filtramos por arquitectura
+datos_filtrados <- datos %>%
+  filter(area == "Arquitectura")
+
+
+g1 <- ggqqplot(datos_filtrados, x = "tiempo", y = "dificultad", alpha = 0.7, palette = c("steelblue","steelblue1","steelblue4"))
+g1 <- g1 + facet_wrap(~ dificultad)
+g1 <- g1 + rremove("x.ticks") + rremove("x.text")
+g1 <- g1 + rremove("y.ticks") + rremove("y.text")
+g1 <- g1 + rremove("axis.title")
+g1
+
+
+prueba_ez <- ezANOVA(data = datos_filtrados, dv= tiempo, wid = .(id), within = dificultad)
+print(prueba_ez)
+
+g2 <- ezPlot(data = datos_filtrados, dv = tiempo, wid = .(id), within = dificultad,
+             y_lab = "Tiempo promedio", x = dificultad)
+print(g2)
+```
