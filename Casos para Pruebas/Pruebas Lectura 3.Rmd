@@ -1,0 +1,307 @@
+---
+title: "Pruebas Lectura 3"
+output: html_document
+date: "2025-12-09"
+---
+
+# Prueba Z
+
+Prueba Z para una muestra
+
+¿Cuándo se usa?
+Para asegurar o descartar que la media de una población tiene un cierto valor hipotético, cuando se conoce la desviación estándar de la población ($\sigma$).
+
+Condiciones y Requisitos:Independencia: 
+
+- 1. Las observaciones deben ser independientes (muestreo aleatorio, $<10\%$ de la población)
+
+- 2. Normalidad: La población sigue una distribución normal o la muestra es grande ($n \ge 30$)
+
+- 3. Varianza conocida: Se debe conocer la varianza/desviación estándar poblacional
+
+Implementación en R: R base no tiene esta función, se usa el paquete TeachingDemos.
+
+### Implementación en R
+
+```{r}
+# library(TeachingDemos)
+
+# z.test(x, mu, stdev, alternative, conf.level)
+
+# z.test(muestra, mu = valor_nulo, stdev = desv_est_poblacional, alternative = "two.sided", conf.level = 0.99)
+
+
+```
+En donde:
+
+- x: vector numérico que contiene los datos de la muestra.
+
+- mu: valor hipotético de la media poblacional bajo la hipótesis nula.
+
+- stdev: desviación estándar poblacional conocida.
+
+- alternative: tipo de prueba ("two.sided", "less", "greater").
+
+- conf.level: nivel de confianza para el intervalo de confianza.
+
+
+
+# ----------------------------------------------------------
+
+
+
+
+# Prueba t de Student
+
+## Prueba t de Student para una muestra
+
+¿Cuándo se usa? Es la alternativa más usada cuando NO se conoce la desviación estándar de la población o la muestra es pequeña. Sirve para comparar la media muestral contra un valor nulo
+
+Condiciones y Requisitos:
+
+- 1. Independencia: Observaciones independientes.
+
+- 2. Normalidad: Las observaciones provienen de una distribución cercana a la normal. Se verifica visualmente (Q-Q plot) o con el test de Shapiro-Wilk.
+
+### Implementación en R
+
+
+```{r}
+
+# t.test(x, mu, alternative, conf.level)
+
+# t.test(datos, mu = valor_nulo, alternative = "less", conf.level = 0.95)
+
+```
+En donde:
+
+- x: vector numérico que contiene los datos de la muestra.
+
+- mu: valor hipotético de la media poblacional bajo la hipótesis nula.
+
+- alternative: tipo de prueba ("two.sided", "less", "greater").
+
+- conf.level: nivel de confianza para el intervalo de confianza.
+
+
+
+# ------------------------------------------------------------------
+
+### Prueba t de Student para dos muestras PAREADAS
+
+¿Cuándo se usa? Cuando se comparan dos mediciones que tienen una conexión directa (ej. "antes y después" en el mismo sujeto, o dos algoritmos en la misma instancia). Se analiza la media de las diferencias.
+
+
+Condiciones y Requisitos:
+
+- Independencia: Los pares de observaciones son independientes entre sí.
+
+- Normalidad de la diferencia: La diferencia entre los pares debe seguir una distribución normal.
+
+### Implementación en R
+Se puede hacer calculando la diferencia manualmente o usando el argumento paired
+
+```{r}
+# Opción 1: Pasar ambas muestras y activar paired=TRUE
+
+# t.test(muestra_A, muestra_B, paired = TRUE, alternative = "two.sided", mu = 0, conf.level = 0.95)
+
+# Opción 2: Calcular diferencias y hacer prueba de una muestra
+
+# diferencia <- muestra_A - muestra_B
+
+# t.test(diferencia, mu = 0, ...)
+
+```
+
+En donde:
+
+- muestra_A, muestra_B: vectores numéricos que contienen los datos de las dos muestras pareadas.
+
+- paired: indica que las muestras son pareadas (TRUE/FALSE).
+
+- mu: valor hipotético de la media de las diferencias bajo la hipótesis nula.
+
+- alternative: tipo de prueba ("two.sided", "less", "greater").
+
+- conf.level: nivel de confianza para el intervalo de confianza.
+
+# ------------------------------------------------------------------
+
+### Prueba t de Student para dos muestras INDEPENDIENTES
+
+¿Cuándo se usa? Para comparar las medias de dos grupos totalmente distintos (ej. grupo control vs. grupo experimental) donde una observación en un grupo no influye en el otro.
+
+Condiciones y Requisitos:
+
+- Independencia: Muestras independientes entre sí y observaciones independientes dentro de cada muestra.
+
+- Normalidad: Ambas poblaciones deben distribuirse normalmente (verificable con Shapiro-Wilk en cada grupo).
+
+- Corrección de Welch: R aplica por defecto esta corrección para no asumir que las varianzas de ambos grupos   son iguales (homocedasticidad), lo cual es más robusto.
+
+```{r}
+
+# paired=FALSE es el valor por defecto para muestras independientes
+
+# t.test(grupo_1, grupo_2, paired = FALSE, alternative = "greater", mu = 0, conf.level = 0.99)
+
+```
+
+En donde:
+
+- grupo_1, grupo_2: vectores numéricos que contienen los datos de las dos muestras independientes.
+
+- paired: indica que las muestras son independientes (FALSE).
+
+- mu: valor hipotético de la diferencia de medias bajo la hipótesis nula.
+
+- alternative: tipo de prueba ("two.sided", "less", "greater").
+
+- conf.level: nivel de confianza para el intervalo de confianza.
+
+# ------------------------------------------------------------------
+
+# Inferencia con Proporciones Muestrales (Variables Categóricas)
+
+# Método de Wald (Aproximación Normal)
+
+¿Cuándo se usa? Es el método clásico para una proporción o diferencia de dos proporciones, basado en la aproximación a la normal
+
+
+Condiciones y Requisitos:
+
+- Independencia: Observaciones independientes.
+
+- Condición Éxito-Fracaso: Deben esperarse al menos 10 éxitos y 10 fracasos en    la muestra ($np \ge 10$ y $n(1-p) \ge 10$).
+
+### Implementación en R
+
+El documento indica que R no tiene una función base directa para el Test de Wald "puro" (Z-test para proporciones), por lo que se suele calcular manualmente mediante fórmulas.
+
+```{r}
+
+# Calculo manual del estadístico Z
+
+# error_est <- sqrt((p_nulo * (1 - p_nulo)) / n)
+
+# Z <- (p_muestra - p_nulo) / error_est
+
+# p_valor <- 2 * pnorm(abs(Z), lower.tail = FALSE) # Bilateral
+
+
+```
+
+En donde:
+
+- p_muestra: proporción observada en la muestra.
+
+- p_nulo: proporción hipotética bajo la hipótesis nula.
+
+- n: tamaño de la muestra.
+
+- error_est: error estándar de la proporción bajo la hipótesis nula.
+
+- Z: estadístico de prueba.
+
+- p_valor: valor p asociado al estadístico Z.
+
+# ------------------------------------------------------------------
+
+
+# Método de Wilson (Implementado en prop.test)
+
+¿Cuándo se usa? Es una alternativa más robusta y moderna que Wald. Funciona mejor con muestras pequeñas o proporciones cercanas a 0 o 1. Es el método que utiliza la función estándar de R.
+
+
+Condiciones y Requisitos:
+
+- Similares a Wald, pero es más flexible ante violaciones de la condición         éxito-fracaso y ofrece mejor cobertura en los intervalos de confianza.
+
+### Implementación en R: 
+Se utiliza la función prop.test.
+
+- x: número de éxitos.
+
+- n: tamaño de la muestra.
+
+##### Para una proporción 
+```{r}
+
+# prop.test(x, n, p, alternative, conf.level)
+
+# prop.test(x = exitos, n = total_muestra, p = valor_nulo, alternative = "greater", conf.level = 0.95)
+
+```
+
+En donde:
+
+- exitos: número de éxitos observados en la muestra.
+
+- total_muestra: tamaño total de la muestra.
+
+- p: proporción hipotética bajo la hipótesis nula.
+
+- alternative: tipo de prueba ("two.sided", "less", "greater").
+
+- conf.level: nivel de confianza para el intervalo de confianza.
+
+##### Para dos proporciones
+```{r}
+
+# Se pasan vectores con los éxitos y los totales
+
+# exitos <- c(exitos_grupo1, exitos_grupo2)
+
+# totales <- c(n_grupo1, n_grupo2)
+
+# prop.test(exitos, n = totales, alternative = "two.sided", conf.level = 0.95)
+
+
+
+```
+
+En donde:
+
+- exitos: vector con el número de éxitos en cada grupo.
+
+- totales: vector con el tamaño de cada grupo.
+
+- alternative: tipo de prueba ("two.sided", "less", "greater").
+
+- conf.level: nivel de confianza para el intervalo de confianza.
+
+# ------------------------------------------------------------------
+
+# Para verificación de condiciones
+
+# Gráfico Q-Q
+```{r}
+
+# library(ggpubr)
+
+# ggqqplot(datos, x = "variable", title = "Gráfico Q-Q")
+
+
+```
+
+En donde:
+
+- datos: data frame que contiene los datos.
+
+- x: nombre de la variable a evaluar.
+
+
+
+
+# Test de Shapiro-Wilk
+
+```{r}
+
+# shapiro.test(x)
+
+```
+
+En donde:
+
+- x: vector numérico que contiene los datos de la muestra.
