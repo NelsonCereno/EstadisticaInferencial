@@ -1,0 +1,227 @@
+---
+title: "Pruebas Lectura 7"
+output: html_document
+date: "2025-12-09"
+---
+
+```{r }
+
+```
+# ANOVA de una vía para Muestras Correlacionadas
+
+¿Cuándo se usa? Se utiliza para comparar las medias de tres o más grupos cuando las observaciones no son independientes. Existen dos escenarios principales:
+
+- Medidas Repetidas: Se mide al mismo sujeto en diferentes momentos o condiciones (ej. medir eficiencia de un alumno con 4 algoritmos distintos).
+
+- Bloques Aleatorios: Se agrupan sujetos "equivalentes" en bloques y se comparan tratamientos dentro de esos bloques.
+
+Hipótesis:
+
+- $H_0$: No hay diferencias en las medias de las mediciones ($\mu_1 = \mu_2 = \dots = \mu_k$).
+
+- $H_A$: Al menos un par de medias es diferente.
+
+Condiciones y Requisitos:
+
+- Escala: La variable dependiente debe ser numérica (intervalo/razón).
+
+- Independencia: Las observaciones son independientes entre los sujetos (aunque dependientes dentro del sujeto).
+
+- Normalidad: La variable dependiente debe distribuirse normalmente en cada nivel del factor.
+
+- Esfericidad (Crucial): Las varianzas de las diferencias entre todos los pares de niveles deben ser iguales.
+
+### Implementación en R (Prueba Ómnibus)
+
+### ezANOVA
+Esta función entrega automáticamente la prueba de esfericidad y las correcciones necesarias.
+
+```{r}
+
+# library(ez)
+# ezANOVA(data, dv, wid, within)
+
+# dv: variable dependiente (numérica)
+
+# wid: identificador del sujeto/caso (factor)
+
+# within: variable independiente (factor intra-sujetos)
+
+# modelo_ez <- ezANOVA(data = datos_largos, 
+#                      dv = Tiempo, 
+#                      wid = Instancia, 
+#                      within = Algoritmo)
+
+# print(modelo_ez)
+
+```
+En donde:
+
+- data: conjunto de datos en formato largo.
+
+- dv: variable dependiente (numérica).
+
+- wid: identificador del sujeto/caso (factor).
+
+- within: variable independiente (factor intra-sujetos).
+
+Si la prueba de esfericidad (Mauchly's Test) es significativa (p < 0.05), se deben aplicar correcciones (Greenhouse-Geisser o Huynh-Feldt) para ajustar los grados de libertad.
+
+
+
+
+### aov
+Requiere especificar explícitamente el término de error para indicar que los factores están cruzados con los sujetos.
+
+
+```{r}
+# aov(dependiente ~ factor + Error(sujeto/factor))
+
+# prueba_aov <- aov(Tiempo ~ Algoritmo + Error(Instancia/Algoritmo), data = datos_largos)
+
+# summary(prueba_aov)
+
+```
+En donde:
+
+- dependiente: variable dependiente (numérica).
+
+- factor: variable independiente (factor intra-sujetos).
+
+- sujeto: identificador del sujeto/caso (factor).
+
+### Validación de la Esfericidad (Condición Especial) 
+
+A diferencia del ANOVA independiente (que revisa homocedasticidad con Levene), aquí se revisa la Esfericidad.
+
+1. Prueba de Mauchly:ezANOVA la reporta automáticamente.
+
+- Si $p > 0.05$: Se cumple la esfericidad. Se usa el resultado del ANOVA estándar.
+
+- Si $p < 0.05$: Se viola la esfericidad. Se deben aplicar correcciones a los grados de libertad.
+
+2. Correcciones (cuando falla Mauchly):Se reportan dos estimadores de esfericidad ($\epsilon$):
+
+- Greenhouse-Geisser (GG): Más conservadora. Se recomienda usar si $\epsilon < 0.75$.
+
+- Huynh-Feldt (HF): Más liberal. Se recomienda usar si $\epsilon \ge 0.75$.
+
+Implementación:En la salida de ezANOVA, observar la sección $Sphericity Corrections. Si la esfericidad falla, ignorar el p-valor normal y usar el p-valor de p[GG] o p[HF] según corresponda.
+
+# ------------------------------------------------------------------------------
+# Procedimientos Post-Hoc
+Si la prueba ómnibus es significativa, se debe identificar qué grupos difieren.
+
+# Pruebas t pareadas con ajuste (Bonferroni/Holm)
+Es el método genérico y robusto.
+
+```{r}
+
+# pairwise.t.test(x, g, p.adjust.method, paired)
+
+# pairwise.t.test(datos$Tiempo, datos$Algoritmo, 
+#                 p.adj = "holm", 
+#                 paired = TRUE) # Importante: paired=TRUE
+
+
+
+```
+
+En donde: 
+
+- x: variable dependiente (numérica).
+
+- g: variable independiente (factor intra-sujetos).
+
+- p.adjust.method: método de ajuste para múltiples comparaciones ("bonferroni", "holm", etc.).
+
+- paired: debe ser TRUE para muestras correlacionadas.
+
+# ------------------------------------------------------------------------------
+
+
+# Medias Marginales Estimadas (Tukey / Scheffé)
+Para aplicar Tukey o Scheffé en medidas repetidas, TukeyHSD base no funciona bien. Se usa el paquete emmeans
+
+```{r}
+
+
+# library(emmeans)
+
+# 1. Crear objeto emmeans desde el modelo aov (o lme)
+
+# medias_estimadas <- emmeans(prueba_aov, "Algoritmo")
+
+# 2. Contraste de Tukey
+
+# contrast(medias_estimadas, method = "pairwise", adjust = "tukey")
+
+# 3. Contraste de Scheffé
+
+# contrast(medias_estimadas, method = "pairwise", adjust = "scheffe")
+
+
+
+```
+
+En donde: 
+- emmeans: calcula las medias marginales estimadas.
+
+- "Algoritmo": especifica el factor intra-sujetos.
+
+- prueba_aov: modelo ANOVA ajustado con aov().
+
+- method: especifica el tipo de contraste ("pairwise" para comparaciones por pares).
+
+- adjust: método de ajuste para múltiples comparaciones ("tukey", "scheffe", etc.).
+
+- contrast: realiza los contrastes post-hoc con el método de ajuste especificado.
+
+# ------------------------------------------------------------------------------
+
+# Tamaño del Efecto y Potencia
+
+### Tamaño del Efecto ($\eta^2_G$)
+
+Se utiliza el Eta Cuadrado Generalizado. ezANOVA lo entrega por defecto bajo la columna ges.
+
+- Referencia: 0.01 (pequeño), 0.06 (mediano), 0.14 (grande).
+
+
+### Análisis de Poder (Power)
+
+El paquete estándar pwr no sirve para medidas repetidas. Se debe usar el paquete WebPower.
+
+```{r}
+# library(WebPower)
+
+# wp.rmanova(n, ng, nm, f, nscor, alpha, type)
+
+# n: número de casos
+
+# ng: número de grupos (1 para medidas repetidas simple)
+
+# nm: número de medidas (niveles del factor)
+
+# f: tamaño del efecto (f de Cohen transformado desde eta cuadrado)
+
+# nscor: esfericidad (1 si se cumple, <1 si corrección es necesaria)
+
+# type: 1 (para efecto entre medidas)
+
+# wp.rmanova(n = 6, ng = 1, nm = 4, f = 4.227, nscor = 0.68, type = 1)
+
+```
+En donde:
+
+- n: número de casos.
+
+- ng: número de grupos (1 para medidas repetidas simple).
+
+- nm: número de medidas (niveles del factor).
+
+- f: tamaño del efecto (f de Cohen transformado desde eta cuadrado).
+
+- nscor: esfericidad (1 si se cumple, < 1 si corrección es necesaria).
+
+- type: 1 (para efecto entre medidas).
