@@ -1,0 +1,162 @@
+---
+title: "Prueba Lectura 4"
+output: html_document
+date: "2025-12-09"
+---
+
+### Conceptos Clave del Capítulo
+
+Antes de pasar a las pruebas específicas, es fundamental entender tres conceptos que se relacionan matemáticamente:
+
+# --------------------------------------------------------------
+
+### Poder Estadístico ($1-\beta$):
+
+Es la probabilidad de rechazar correctamente la hipótesis nula ($H_0$) cuando esta es realmente falsa. 
+Se busca que sea alto (usualmente $> 80\%$).
+
+### Error Tipo II ($\beta$): 
+
+La probabilidad de no detectar un efecto que realmente existe (no rechazar $H_0$ cuando es falsa).
+
+### Tamaño del Efecto: 
+
+Una medida cuantificable de la magnitud de la diferencia o asociación entre grupos (por ejemplo, ¿cuán grande es la diferencia entre dos promedios?).
+
+# --------------------------------------------------------------
+
+### 1. Análisis de Poder para la Prueba Z (Varianza Conocida)
+
+Aunque la prueba Z se usa poco en la práctica, sirve como base para entender la relación entre los factores: a mayor tamaño del efecto o mayor muestra, mayor poder.
+
+Medida del Tamaño del Efecto:Se utiliza la diferencia normalizada: $d = \frac{\mu - \mu_0}{\sigma}$ (para una muestra) o $d = \frac{\delta}{\sigma}$.
+
+
+### Implementación en R: Se usa la función pwr.norm.test del paquete pwr.
+
+Nota: En todas las funciones de pwr, debes dejar como NULL el parámetro que deseas calcular (ej. si quieres saber el tamaño de muestra necesario, dejas n = NULL).
+
+```{r}
+#library(pwr)
+# Ejemplo: Calcular poder dado un tamaño de efecto y muestra
+#pwr.norm.test(d = tamaño_efecto_normalizado, 
+#              n = tamaño_muestra, 
+#              sig.level = 0.05, 
+#              power = NULL, # Lo que queremos calcular
+#              alternative = "two.sided")
+```
+
+# --------------------------------------------------------------
+
+### 2. Análisis de Poder para la Prueba t de Student
+
+Esta es la aplicación más común para inferencia de medias cuando se desconoce la varianza poblacional.
+
+### A. Tamaño del Efecto: d de Cohen
+
+Para estas pruebas, se estandariza la diferencia usando la desviación estándar muestral ($s$).
+
+Referencia: $d=0.2$ (pequeño), $d=0.5$ (mediano), $d=0.8$ (grande).
+
+Cálculo (Una muestra): $d = \frac{\overline{x} - \mu_0}{s}$.
+
+Cálculo (Dos muestras independientes): $d = \frac{\overline{x}_1 - \overline{x}_2}{s_p}$, donde $s_p$ es la desviación estándar agrupada.
+
+Implementación del Efecto en R:Se pueden usar paquetes como effsize o rstatix.
+
+```{r}
+#library(effsize)
+# Calcular d de Cohen para dos muestras
+#cohen.d(grupo1, grupo2)
+```
+
+
+### B. Cálculo de Poder / Tamaño de Muestra en R
+
+Existen funciones específicas dependiendo si las muestras tienen el mismo tamaño o no.
+
+Caso 1: Una muestra, pares, o dos muestras de IGUAL tamaño
+
+```{r}
+# pwr.t.test(n, d, sig.level, power, type, alternative)
+#pwr.t.test(n = 30,           # Tamaño por grupo
+#           d = 0.5,          # d de Cohen
+#           sig.level = 0.05, 
+#           power = NULL,     # Calcular poder
+#           type = "two.sample", # O "one.sample", "paired"
+#           alternative = "two.sided")
+```
+
+Caso 2: Dos muestras de DISTINTO tamaño
+
+Si los grupos tienen $n$ diferente (común en grupos de control vs tratamiento), se usa pwr.t2n.test.
+
+```{r}
+# pwr.t2n.test(n1, n2, d, sig.level, power, alternative)
+#pwr.t2n.test(n1 = 30, 
+#             n2 = 25, 
+#             d = 0.6, 
+#             sig.level = 0.05, 
+#             power = NULL, 
+#             alternative = "less")
+```
+
+# --------------------------------------------------------------
+
+### 3. Análisis de Poder para Proporciones
+
+Utilizado para las pruebas descritas en el Capítulo 6 (Pruebas de Wald/Wilson).
+
+### A. Tamaño del Efecto: h de Cohen
+
+Las proporciones requieren una transformación (arcoseno) para estabilizar la varianza antes de medir el efecto, ya que la varianza depende de $p$.
+
+Fórmula: $h = 2\arcsin(\sqrt{p_1}) - 2\arcsin(\sqrt{p_2})$.
+
+Implementación del Efecto en R:
+
+```{r}
+# Calcular h de Cohen dados dos probabilidades/proporciones
+#h_val <- ES.h(p1 = 0.18, p2 = 0.13)
+```
+
+### B. Cálculo de Poder / Tamaño de Muestra en R
+
+Al igual que con la prueba t, hay funciones para distintos escenarios .
+
+Caso 1: Una única proporción
+
+```{r}
+#pwr.p.test(h = efecto_h, n = muestra, sig.level = 0.05, power = NULL)
+```
+
+Caso 2: Dos proporciones con IGUAL tamaño de muestra
+
+```{r}
+#pwr.2p.test(h = efecto_h, n = muestra_por_grupo, sig.level = 0.05, power = NULL)
+```
+
+Caso 3: Dos proporciones con DISTINTO tamaño de muestra
+
+```{r}
+#pwr.2p2n.test(h = efecto_h, 
+#              n1 = 25, 
+#              n2 = 30, 
+#              sig.level = 0.05, 
+#              power = NULL)
+```
+
+# --------------------------------------------------------------
+
+### Resumen de flujo de trabajo en R
+
+Para cualquier diseño experimental descrito en este capítulo, el flujo es:
+
+1) Determinar el tipo de prueba (medias o proporciones).
+
+2) Estimar el tamaño del efecto esperado (usando literatura, estudios piloto o las convenciones de Cohen: 0.2, 0.5, 0.8).
+
+3) Elegir la función pwr.* adecuada.
+
+4) Dejar como NULL el parámetro que se desea descubrir (ej. n para saber cuántos datos recolectar, o power para saber qué tan confiable es la prueba realizada).
+
