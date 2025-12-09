@@ -1,0 +1,248 @@
+---
+title: "Prueba Lectura 8"
+output: html_document
+date: "2025-12-09"
+---
+
+Este capítulo aborda qué hacer cuando los datos no cumplen con los supuestos de las pruebas paramétricas tradicionales (como la normalidad). Existen dos caminos principales: transformar los datos o usar pruebas no paramétricas.
+
+
+### I. Estrategia A: Transformación de Datos
+
+El objetivo es aplicar una función matemática a los datos originales para que la nueva variable resultante cumpla con los supuestos (principalmente normalidad) y así poder usar pruebas paramétricas estándar (t-test, ANOVA).
+
+### 1. Transformación Lineal
+
+1) ¿Cuándo se usa? Principalmente para cambio de unidades (ej. Celsius a Fahrenheit).
+
+2) Efecto: Cambia la escala pero no altera la forma de la distribución (si es asimétrica, seguirá siéndolo).
+
+3) Fórmula: $y_i = m x_i + n$.
+
+4) R: Operaciones aritméticas simples.
+
+```{r}
+
+# Fahrenheit <- 1.8 * Celsius + 32
+
+```
+
+# --------------------------------------------------------------
+
+### 2. Transformación Logarítmica
+
+1) ¿Cuándo se usa? Muy efectiva para corregir asimetría positiva (colas largas a la derecha) y reducir variabilidad.
+
+2) Advertencia: Al usar pruebas paramétricas sobre estos datos, las inferencias (como la media) corresponden a la media geométrica de los datos originales, no la aritmética.
+
+### R:
+
+```{r}
+
+#datos$log_x <- log(datos$x) # Base e
+
+```
+
+# --------------------------------------------------------------
+
+### 3. Escalera de Potencias de Tukey
+
+1) ¿Cuándo se usa? Busca sistemáticamente una potencia $\lambda$ ($x^\lambda$) que normalice la distribución.
+
+$\lambda = 1$: Datos crudos.
+
+$\lambda = 0$: Logaritmo.
+
+$\lambda = 0.5$: Raíz cuadrada.
+
+$\lambda = -1$: Recíproco.
+
+
+### Implementación en R: Paquete rcompanion.
+
+```{r}
+
+#library(rcompanion)
+# Encuentra lambda óptimo y transforma
+# plotit=TRUE muestra histogramas y Q-Q plots para verificar
+#transformTukey(datos$variable, plotit = FALSE)
+
+```
+
+# --------------------------------------------------------------
+
+
+### 4. Transformación Box-Cox
+
+1) ¿Cuándo se usa? Es una versión refinada de Tukey que maneja mejor la continuidad matemática alrededor de $\lambda=0$.
+
+2) Implementación en R: Paquete DescTools.
+
+```{r}
+
+#library(DescTools)
+# 1. Encontrar lambda óptimo
+#lambda_opt <- BoxCoxLambda(datos$variable)
+# 2. Aplicar transformación
+#datos$transf <- BoxCox(datos$variable, lambda_opt)
+
+```
+
+# --------------------------------------------------------------
+
+### II. Estrategia B: Pruebas No Paramétricas (Basadas en Rangos)
+
+Si la transformación no funciona o se prefiere no transformar, se usan estas pruebas que trabajan con el orden (rangos) de los datos en lugar de los valores brutos. Son menos potentes que las paramétricas si los datos fueran normales, pero más robustas si no lo son.
+
+### 1. Prueba de Suma de Rangos de Wilcoxon (Mann-Whitney U)
+
+¿Cuándo se usa? Alternativa a la Prueba t para dos muestras independientes.
+
+### Condiciones:
+
+1) Independencia: Observaciones independientes entre muestras y dentro de ellas.
+
+2) Escala: Variable dependiente al menos ordinal.
+
+3) Interpretación: Evalúa si una distribución está desplazada respecto a la otra (diferencia de localización). Si las formas son iguales, equivale a comparar medianas.
+
+### Implementación en R:
+
+```{r}
+
+# wilcox.test(x, y, paired = FALSE)
+#wilcox.test(Grupo_A, Grupo_B, paired = FALSE, alternative = "two.sided")
+
+```
+
+### 2. Prueba de Rangos con Signo de Wilcoxon
+
+¿Cuándo se usa? Alternativa a la Prueba t para muestras PAREADAS (dependientes).
+
+### Condiciones:
+
+1) Independencia: Los pares de observaciones son independientes entre sí.
+
+2) Escala: Al menos ordinal.
+
+3) Se basa en los rangos de las diferencias entre pares.
+
+### Implementación en R:
+
+```{r}
+
+# paired = TRUE es fundamental
+#wilcox.test(Condicion_A, Condicion_B, paired = TRUE, alternative = "greater")
+
+```
+
+# --------------------------------------------------------------
+
+### III. Estrategia C: Pruebas No Paramétricas para >2 Grupos
+
+### 1. Prueba de Kruskal-Wallis
+
+¿Cuándo se usa? Alternativa al ANOVA de una vía para muestras independientes (3 o más grupos).
+
+### Condiciones:
+
+1) Variable dependiente ordinal o numérica.
+
+2) Observaciones independientes.
+
+3) Homogeneidad de varianza (homocedasticidad) es deseable para interpretar diferencias de ubicación, aunque la prueba es robusta.
+
+### Implementación en R:
+
+```{r}
+
+# kruskal.test(formula, data)
+#kruskal.test(Tiempo ~ Criterio, data = datos)
+
+```
+
+### Post-Hoc (Si el test es significativo): 
+
+Se usan pruebas de Wilcoxon por pares con ajuste de p-valor (ej. Benjamini-Hochberg "BH" o Holm).
+
+```{r}
+
+#pairwise.wilcox.test(datos$Tiempo, datos$Criterio, 
+#                     p.adjust.method = "BH", 
+#                     paired = FALSE)
+
+```
+# --------------------------------------------------------------
+
+### 2. Prueba de Friedman
+
+¿Cuándo se usa? Alternativa al ANOVA de medidas repetidas (muestras correlacionadas / bloques).
+
+### Condiciones:
+
+1) Variable dependiente ordinal.
+
+2) Muestra aleatoria e independiente de sujetos/bloques.
+
+3) Variable independiente categórica (3 o más niveles).
+
+### Implementación en R: Requiere formato de fórmula indicando los bloques (sujetos).
+
+```{r}
+
+# friedman.test(y ~ grupos | bloques, data)
+#friedman.test(Puntuacion ~ Interfaz | Sujeto, data = datos)
+
+```
+
+### Post-Hoc: Wilcoxon pareado con ajuste.
+
+```{r}
+
+#pairwise.wilcox.test(datos$Puntuacion, datos$Interfaz, 
+#                     p.adjust.method = "holm", 
+#                     paired = TRUE)
+
+```
+
+Nota Importante: El documento menciona que existe una tendencia moderna a no usar Friedman, y en su lugar aplicar ANOVA directamente sobre los datos transformados a rangos (Rank transformation ANOVA).
+
+```{r tabla-resumen-pruebas, echo=FALSE, message=FALSE, warning=FALSE}
+# Cargar librerías necesarias
+library(knitr)
+library(tibble)
+
+# Crear el dataframe con la información del resumen
+tabla_seleccion <- tibble(
+  `Diseño Experimental` = c(
+    "2 Muestras Independientes",
+    "2 Muestras Pareadas",
+    "> 2 Muestras Independientes",
+    "> 2 Muestras Pareadas (Bloques)"
+  ),
+  `Paramétrico (Supuestos OK)` = c(
+    "Prueba t de Student / Welch",
+    "Prueba t Pareada",
+    "ANOVA de una vía",
+    "ANOVA de Medidas Repetidas"
+  ),
+  `No Paramétrico (No Normal / Ordinal)` = c(
+    "Suma de Rangos de Wilcoxon (Mann-Whitney)",
+    "Rangos con Signo de Wilcoxon",
+    "Prueba de Kruskal-Wallis",
+    "Prueba de Friedman"
+  )
+)
+
+# Renderizar la tabla para el documento
+kable(tabla_seleccion, 
+      caption = "Guía de Selección de Pruebas Estadísticas (Capítulo 11)",
+      align = "lcc") # Alineación: left, center, center
+
+
+
+```
+
+**Nota:** 
+
+La información de esta tabla compila las recomendaciones encontradas en las secciones de Wilcoxon/Mann-Whitney, Wilcoxon Pareado, Kruskal-Wallis y Friedman.
