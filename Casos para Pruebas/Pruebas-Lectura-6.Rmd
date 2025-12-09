@@ -1,0 +1,167 @@
+---
+title: '"Prueba Lectura 6"'
+output: html_document
+date: "2025-12-09"
+---
+
+Este capítulo se centra en comparar las medias de tres o más grupos ($k \ge 3$) simultáneamente, evitando el error inflado que produciría hacer múltiples pruebas t de Student.
+
+### I. Prueba Ómnibus: ANOVA de una Vía (Independiente)
+
+¿Cuándo se usa? Se utiliza para verificar si existen diferencias significativas entre las medias de $k$ grupos independientes. Es una prueba "ómnibus", lo que significa que detecta si hay una diferencia en algún lugar, pero no dónde está esa diferencia2.
+
+### Hipótesis:
+
+$H_0$: Todas las medias de los grupos son iguales ($\mu_1 = \mu_2 = ... = \mu_k$).
+
+$H_A$: Al menos una de las medias es diferente.
+
+### Condiciones y Requisitos:
+
+
+1) Escala: La variable dependiente debe ser numérica (escala de intervalo o razón).
+
+
+2) Independencia: Las muestras son aleatorias e independientes entre sí.
+
+3) Normalidad: Las poblaciones de origen siguen una distribución normal. Se verifica con gráficos Q-Q o pruebas de normalidad.
+
+4) Homocedasticidad: Las poblaciones tienen la misma varianza. Una regla práctica es que la razón entre la varianza máxima y mínima no supere 1.5.
+
+
+### Implementación en R: 
+
+El documento destaca dos formas principales: usando aov (base) y ezANOVA (paquete ez).
+
+Opción 1: aov (Estándar)
+
+```{r}
+
+# aov(formula, data)
+# La formula es: variable_dependiente ~ variable_agrupadora
+#prueba_aov <- aov(Tiempo ~ Algoritmo, data = datos_largos)
+#summary(prueba_aov)
+
+```
+
+Opción 2: ezANOVA (Recomendada) Es más completa, verifica homocedasticidad (Levene) y entrega el tamaño del efecto automáticamente.
+
+```{r}
+
+library(ez)
+# ezANOVA(data, dv, wid, between, return_aov)
+#prueba_ez <- ezANOVA(
+#  data = datos_largos,
+#  dv = Tiempo,       # Variable dependiente
+#  wid = Instancia,   # Identificador del sujeto/instancia
+#  between = Algoritmo, # Variable independiente (grupos)
+#  return_aov = TRUE  # Retorna el objeto aov para uso posterior
+#)
+#print(prueba_ez)
+
+```
+
+# --------------------------------------------------------------
+
+### II. Verificación de Supuestos y Tamaño del Efecto
+
+Para validar la prueba ANOVA y cuantificar el hallazgo:
+
+1) Homocedasticidad (Prueba de Levene):La función ezANOVA ejecuta automáticamente la prueba de Levene.
+
+  a) Si $p > \alpha$, se asume igualdad de varianzas (se cumple la condición).
+
+2) Tamaño del Efecto ($\eta^2_G$):ANOVA nos dice si hay diferencia, pero no cuán grande es. Se usa el Eta Cuadrado Generalizado.
+
+  a) Se encuentra bajo la columna ges en la salida de ezANOVA.
+
+  b) Interpretación: 0.01 (pequeño), 0.06 (mediano), 0.14 (grande).
+
+3) Potencia Estadística:Para calcular el poder o el tamaño de muestra necesario.
+
+```{r}
+
+#library(pwr)
+# pwr.anova.test(k, n, f, sig.level, power)
+# f = tamaño del efecto de Cohen (se calcula desde eta cuadrado)
+#pwr.anova.test(k = 3, n = 5, f = 1.071, sig.level = 0.05, power = NULL)
+
+```
+
+# --------------------------------------------------------------
+
+### III. Pruebas Post-Hoc (Si ANOVA es significativa)
+
+Si ANOVA rechaza $H_0$, debemos usar una prueba post-hoc para descubrir exactamente qué grupos son diferentes.
+
+### 1) Pruebas t con corrección (Holm / Benjamini-Hochberg)
+
+¿Cuándo se usa? Es un método genérico para comparar pares. Se ajusta el valor p para controlar el error Tipo I.
+
+a) Holm: Más conservadora.
+
+b) FDR (Benjamini-Hochberg): Mayor potencia.
+
+### Implementación en R:
+
+```{r}
+
+# pairwise.t.test(x, g, p.adjust.method, ...)
+#pairwise.t.test(datos$Tiempo, datos$Algoritmo, p.adj = "holm", pool.sd = TRUE)
+#pairwise.t.test(datos$Tiempo, datos$Algoritmo, p.adj = "fdr", pool.sd = TRUE)
+
+```
+
+### 2) Prueba HSD de Tukey (Honestly Significant Difference)
+
+¿Cuándo se usa? Es la prueba recomendada para comparar todos los pares de medias. Controla bien la tasa de error y tiene buena potencia si los grupos están balanceados (mismo tamaño) y cumplen los supuestos de ANOVA .
+
+Condiciones:
+
+a) Diseñado para grupos balanceados (si no, usa Tukey-Kramer).
+
+b) Se deben cumplir las condiciones de ANOVA.
+
+### Implementación en R: Se aplica sobre el objeto creado por aov.
+
+```{r}
+
+# TukeyHSD(x, which, ordered, conf.level)
+#TukeyHSD(prueba_aov, "Algoritmo", ordered = TRUE, conf.level = 0.95)
+
+```
+
+# --------------------------------------------------------------
+
+### 3. Prueba de Scheffé
+
+¿Cuándo se usa? Es el método más conservador (es más difícil encontrar diferencias significativas). Su gran ventaja es que permite realizar contrastes complejos, no solo par-a-par (ej. comparar el Grupo A contra el promedio de los Grupos B y C combinados).
+
+
+### Implementación en R: Requiere definir una matriz de contrastes y el paquete DescTools.
+
+```{r}
+
+#library(DescTools)
+# 1. Definir contrastes (ej. A vs B, A vs C, A vs B+C)
+# Los coeficientes deben sumar 0.
+#contrastes <- matrix(c(1, -1, 0,      # A vs B
+#                       1, -0.5, -0.5), # A vs (B y C)
+#                     ncol = 2)
+
+# 2. Ejecutar la prueba
+# ScheffeTest(x, which, contrasts, conf.level)
+#ScheffeTest(prueba_aov, which = "Algoritmo", contrasts = contrastes, conf.level = 0.95)
+
+```
+
+# --------------------------------------------------------------
+
+Resumen de Selección Post-Hoc
+
+1) ¿Quieres comparar "todos contra todos"? $\rightarrow$ Tukey HSD.
+
+2) ¿Tienes contrastes complejos (uno vs varios)? $\rightarrow$ Scheffé.
+
+3) ¿No se cumplen bien los supuestos o prefieres una corrección estándar? $\rightarrow$ Pairwise t-test (Holm/FDR).
+
