@@ -1,0 +1,341 @@
+---
+title: "EP07"
+author: "Equipo 6"
+date: "2025-10-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ggpubr)
+library(broom)
+library(car)
+library(knitr)
+library(cowplot)
+
+```
+
+Enunciados:
+En el trabajo de título de una estudiante del DIINF se reportan tiempos de ejecución (en milisegundos) y la cercanía con la solución óptima (en por ciento) de la mejor solución encontrada con tres versiones de un algoritmo genético para resolver instancias del problema del vendedor viajero disponibles en repositorios públicos. Ahora debe enfrentar el análisis de estos datos, por que está solicitando ayuda de las y los estudiantes de Estadística Inferencial.
+
+1) Observando los datos, la memorista sospecha que hay diferencias significativas en el tiempo de ejecución entre las versiones A y C del algoritmo cuando las instancias tienen 60 o más nodos. ¿Los datos respaldan la intuición de la memorista? Filtrar para n.nodos >= 60, columnas tiempo.A y tiempo.C (ancho). Semilla = 33. Obtener muestras aleatorias INDEPENDIENTES: A = 24, C = 18. Analizar (hipótesis, condiciones, pruebas ómnibus/post-hoc si aplica).
+
+2) La memorista sospecha que, al comparar las mismas instancias de iguales características, las mejores soluciones encontradas por las versiones A y B tienen rendimientos distintos. Filtrar para n.nodos >= 60, columnas mejor.A y mejor.B (ancho). Semilla = 33. Obtener muestra aleatoria de 22 instancias (pareadas). Analizar.
+
+3) La memorista sospecha que hay diferencias significativas en el tiempo de ejecución entre las versiones del algoritmo cuando las instancias tienen 45 o más nodos. Filtrar para n.nodos >= 45, columnas tiempo.A/B/C (ancho). Semilla = 43. Obtener muestras aleatorias INDEPENDIENTES: A = 15, B = 15, C = 14. Analizar.
+
+4) La memorista sospecha que, al comparar las mismas instancias con iguales características, las mejores soluciones encontradas por las diferentes versiones del algoritmo tienen rendimientos distintos. Filtrar para n.nodos >= 45, columnas mejor.A/B/C. Semilla = 71. Obtener muestra aleatoria de 23 instancias (pareadas). Analizar.
+
+
+# Se cargan los datos
+
+
+```{r load-data}
+# datos
+datos <- read.csv("EP07 Datos.csv", stringsAsFactors = FALSE)
+```
+
+Sobre los datos las variables que observaremos especificamente:
+
+Tiempo de ejecución para cada instancia segun la version del algoritmo: medido en milisegundos, en escala de razón, continua, cumple mínimo ordinal.
+
+Mejor solución encontrada para cada instancia según la version del algoritmo:porcentaje con respecto a cercanía al óptimo, en escala continua, de razón, cumple mínimo ordinal.
+
+Segun la pregunta  y sus restricciones se extraen de diferente forma los datos:
+
+Para preguntas para muestras independientes:
+Se obtienen de las 170 observaciones datos sin reposición.
+Para cada algoritmo se extrae una muestra que representa el algoritmo. Podemos decir que las observaciones son independientes las una de las otras ya que no influye una instancia en la otra, además, podemos suponer razonablemente que pueden existir miles de instancias de cada algoritmo, por lo que son menores a un 10% de la población.
+
+Para preguntas para muestras dependientes:
+Se obtienen de las 170 observaciones datos. Para cada instancia se obtiene la instancia completa con toda la información para cada algoritmo, por lo que esta perfectamente pareada la misma instancia (misma cantidad de nodos y cantidad de nodos) probada con los 3 algoritmo. dependiendo de la pregunta, se eligen los algoritmos a comparar (A, B, C), además, podemos suponer razonablemente que pueden existir miles de instancias de cada algoritmo, por lo que son menores a un 10% de la población.
+
+
+---
+
+# Pregunta 1: ¿Hay diferencias significativas en el tiempo de ejecución entre las versiones A y C del algoritmo cuando las instancias tienen 60 o más nodos?
+
+## Hipótesis
+
+H0: Los tiempo de ejecución entre las versiones A y C del algoritmo cuando las instancias tienen 60 o más nodos no tienen diferencias significativas.
+
+HA:  Los tiempo de ejecución entre las versiones A y C del algoritmo cuando las instancias tienen 60 o más nodos tienen diferencias significativas.
+
+Se trabajarán como dos muestras independientes según el enunciado, por lo que se usará la prueba no paramétrica si no se cumplen supuestos de normalidad.
+
+## Muestra y filtrado
+
+```{r}
+# Filtro instancias con 60 o más nodos
+datos_60 <- datos |> filter(n.nodos >= 60)
+
+# muestreo obtenido independiente para cada grupo con misma semilla
+set.seed(33)
+muestraA <- datos_60 |> sample_n(24, replace = FALSE) |> pull(tiempo.A) |> as.numeric()
+set.seed(33)
+muestraC <- datos_60 |> sample_n(18, replace = FALSE) |> pull(tiempo.C) |> as.numeric()
+
+muestraAC <- data.frame(Tiempo = c(muestraA, muestraC),
+                    Version = factor(rep(c("A", "C"),
+                   times = c(length(muestraA), length(muestraC)))))
+
+```
+
+## Verificación de condiciones
+
+1) Se obtiene la Normalidad (por grupo independiente)
+
+```{r}
+shapiroA <- shapiro.test(muestraA)
+shapiroC <- shapiro.test(muestraC)
+
+shapiroA
+shapiroC
+```
+
+### Gráficos Q-Q y boxplots
+
+```{r}
+# QQ plot
+qq <- ggqqplot(muestraAC, x = "Tiempo", color = "Version") +
+  facet_wrap(~ Version, scales = "free") +
+  ggtitle("Q-Q plots por versión")
+
+# Boxplot
+box <- ggboxplot(muestraAC,
+                 x = "Version",
+                 y = "Tiempo",
+                 add = "jitter") + ggtitle("Boxplot tiempos: A vs C")
+
+plot(qq)
+plot(box)
+```
+
+Observamos que los p-value de la prueba de shapiro en ambos p-value < 0.05 por lo que no se cumple normalidad en ese grupo. Se observan tambien los gráficos qq y box-plot, notamos además que los boxplots se observan diferencias en la dispersión de los datos entre versiones, por lo que podriamos pensar que las varianzas podrían no ser homogéneas.  por lo que se optará por prueba no paramétrica.
+
+
+Aplicaremos la prueba de Wilcoxon rank-sum (Mann–Whitney) para muestras independientes.
+
+## Prueba estadística
+
+```{r}
+# Homogeneidad de varianzas (Levene) - aunque no estrictamente necesaria para Mann-Whitney, se verifica
+levene <- leveneTest(Tiempo ~ Version,
+                     data = muestraAC)
+
+# Prueba Mann-Whitney (Wilcoxon rank-sum)
+wilcoxon <- wilcox.test(Tiempo ~ Version,
+                        data = muestraAC,
+                        alternative = "two.sided",
+                        exact = FALSE,
+                        correct = TRUE)
+
+levene
+wilcoxon
+```
+
+## Sobre los Resultados
+
+El p-value obtenido en prueba Wilcoxon es 0.6565, que es mayor a el nivel de significancia dado 0.05, por lo que no podemos rechazar H0, por lo que los tiempo de ejecución entre las versiones A y C del algoritmo cuando las instancias tienen 60 o más nodos no tienen diferencias significativas.
+
+---
+
+# Pregunta 2: Rendimientos mejores de A vs B (con ≥ 60 nodos) Pareada
+
+## Hipótesis
+
+H0: Al comparar las mismas instancias de iguales características, las mejores soluciones encontradas por las versiones A y B tienen no rendimientos distintos para n.nodos >= 60
+
+HA: Al comparar las mismas instancias de iguales características, las mejores soluciones encontradas por las versiones A y B tienen rendimientos distintos para n.nodos >= 60
+
+## filtro la muestra
+
+```{r}
+set.seed(33)
+datos_60_pareados <- datos |> filter(n.nodos >= 60) |> select(instancia, mejor.A, mejor.B)
+# muestra aleatoria de 22 instancias (si sustraigo filas completas -> pareadas)
+muestra <- datos_60_pareados |> sample_n(22, replace = FALSE)
+
+mejorA <- as.numeric(muestra$mejor.A)
+mejorB <- as.numeric(muestra$mejor.B)
+
+muestraAB <- data.frame(Instancia = 1:nrow(muestra), A = mejorA, B = mejorB)
+
+```
+
+## Verificación de condiciones
+
+### Normalidad de las diferencias
+
+```{r}
+diferencia <- mejorA - mejorB
+shapiro_diferencia <- shapiro.test(diferencia)
+shapiro_diferencia
+
+# QQ plot y boxplot pareado
+qq2 <- ggqqplot(data.frame(diff = diferencia), x = "diferencia") + ggtitle("Q-Q plot diferencias (A-B)")
+
+box2 <- ggpaired(muestra,
+                 cond1 = "mejor.A",
+                 cond2 = "mejor.B",
+                 xlab = "Versión",
+                 ylab = "Rendimiento",
+                 title = "comparacion pareada: mejor.A vs mejor.B")
+
+qq2
+box2
+```
+
+La normalidad de las diferencias no se cumple ya que el p-value obtenido es aprox. 0.01, lo cual es p < 0.05, además, observamos que el comportamiento de los datos en qq sale de la normalidad aceptable y notamos que en el gráfico los boxplots se observan diferencias en la dispersión de los datos entre versiones, por lo que podriamos pensar que las varianzas podrían no ser homogéneas. 
+Procederemos con la prueba no paramétrica Wilcoxon signed-rank (pareada).
+
+## Prueba estadística
+
+```{r}
+
+wilcox <- wilcox.test(mejorA, mejorB, paired = TRUE, alternative = "two.sided", exact = FALSE)
+
+wilcox
+```
+
+## Resultado
+
+
+Se rechaza H0 en favor a la HA con p-value obtenido de la prueba p-value = 7.47e-05, tal que al comparar las mismas instancias de iguales características, las mejores soluciones encontradas por las versiones A y B tienen rendimientos distintos para n.nodos >= 60.
+
+---
+
+# Pregunta 3: Diferencias en tiempos entre A, B y C (instancias con ≥ 45 nodos)
+
+## Hipótesis
+
+H0: Los tiempos de ejecución entre las versiones (A, B, C) del algoritmo, cuando las instancias tienen 45 o más nodos, no tienen diferencias significativas.
+
+HA: Los tiempos de ejecución entre las versiones (A, B, C) del algoritmo, cuando las instancias tienen 45 o más nodos, no tienen diferencias significativas.
+
+## filtrado muestras independientes
+
+```{r}
+# Filtrado de datos 45 o más nodos
+datos_45 <- datos |> filter(n.nodos >= 45) |> select(instancia, tiempo.A, tiempo.B, tiempo.C)
+
+# Se extraen datos para cada una de las muestras de cada una de las versiones sin reposición para que sean independientes.
+set.seed(43)
+muestraA <- datos_45 |> sample_n(15, replace = FALSE) |> pull(tiempo.A) |> as.numeric()
+set.seed(43)
+muestraB <- datos_45 |> sample_n(15, replace = FALSE) |> pull(tiempo.B) |> as.numeric()
+set.seed(43)
+muestraC <- datos_45 |> sample_n(14, replace = FALSE) |> pull(tiempo.C) |> as.numeric()
+
+muestraABC <- data.frame(Tiempo = c(muestraA, muestraB, muestraC),
+                    Version = factor(rep(c("A","B","C"),
+                    times = c(length(muestraA), length(muestraB), length(muestraC)))))
+
+```
+
+## Verificación de condiciones
+
+```{r}
+shapiroA <- shapiro.test(muestraA)
+shapiroB <- shapiro.test(muestraB)
+shapiroC <- shapiro.test(muestraC)
+
+shapiroA
+shapiroB
+shapiroC
+
+# QQ plot y boxplot
+qq3 <- ggqqplot(muestraABC, x = "Tiempo", color = "Version", palette = "jco") + facet_wrap(~ Version, scales = "free") + ggtitle("Q-Q")
+
+box3 <- ggboxplot(muestraABC, x = "Version", y = "Tiempo", add = "jitter") + ggtitle("Boxplot tiempos: A,B,C")
+
+qq3
+box3
+```
+
+No se cumple normalidad en ninguno de los grupos ya que el p-value para A,B,C < 0.05 para el test de shapiro, además, el gráfico qq nos muestra que varios puntos se salen de lo esperado en el area de normalidad y los boxplots se observan diferencias en la dispersión de los datos entre versiones, por lo que podriamos pensar que las varianzas podrían no ser homogéneas. 
+Se aplicará Kruskal–Wallis (prueba no paramétrica para k muestras independientes, en este caso 3) y, si es significativo, un post-hoc con ajuste Benjamini–Hochberg (BH).
+
+## Prueba estadística
+
+```{r}
+kruskal <- kruskal.test(Tiempo ~ Version,
+                        data = muestraABC)
+kruskal
+
+posthoc <- pairwise.wilcox.test(muestraABC$Tiempo,
+                                muestraABC$Version,
+                                p.adjust.method = "BH",
+                                paired = FALSE,
+                                exact = FALSE)
+posthoc
+```
+
+## Resultados y conclusión
+
+El p-values obtenido de la prueba de kruskal es p-value > 0.05, por lo que no podemos refutar H0, a lo cual se concluye que los tiempos de ejecución entre las versiones (A, B, C) del algoritmo, cuando las instancias tienen 45 o más nodos, no tienen diferencias significativas.
+
+---
+
+# Pregunta 4: Rendimientos mejores A, B y C (instancias con ≥ 45 nodos) — pareadas
+
+## Hipótesis
+
+H0: Al comparar las mismas instancias con iguales características, las mejores soluciones encontradas por las diferentes versiones (A, B, C) del algoritmo tienen rendimientos iguales para nodos >= 45
+
+HA: Al comparar las mismas instancias con iguales características, las mejores soluciones encontradas por las diferentes versiones (A, B, C) del algoritmo tienen al menos uno de ellos rendimientos distintos para nodos >= 45.
+
+## Filtrado para pareada
+
+```{r}
+set.seed(71)
+datos_45_pareados <- datos |> filter(n.nodos >= 45) |> select(instancia, mejor.A, mejor.B, mejor.C)
+
+muestra45 <- datos_45_pareados |> sample_n(23, replace = FALSE)
+
+# Pasar a formato largo
+muestraP <- muestra45 |> pivot_longer(cols = c(mejor.A, mejor.B, mejor.C), names_to = "Version", values_to = "Rendimiento") |> mutate(Instancia = rep(1:23, each = 3))
+
+```
+
+## Verificación de condiciones
+
+```{r p4-normality}
+# Shapiro por versión (en el formato de muestra por columna)
+shapiroA <- shapiro.test(as.numeric(muestra45$mejor.A))
+shapiroB <- shapiro.test(as.numeric(muestra45$mejor.B))
+shapiroC <- shapiro.test(as.numeric(muestra45$mejor.C))
+
+# QQ plots y boxplot pareado
+qq4 <- ggqqplot(muestraP,
+                x = "Rendimiento",
+                color = "Version") + facet_wrap(~ Version, scales = "free") + ggtitle("Q-Q plots (P4)")
+
+box4 <- ggpaired(muestra45,
+                 cond1 = "mejor.A",
+                 cond2 = "mejor.B") + ggtitle("Ejemplo de paired plot (A vs B)")
+qq4
+box4
+```
+
+La normalidad no se cumple; hemos de notar que el gráfico qq que observamos no sigue la normalidad esperada, además los boxplots se observan diferencias en la dispersión de los datos entre versiones, por lo que podriamos pensar que las varianzas podrían no ser homogéneas. Por estas razones aplicaremos la prueba no paramétrica Friedman (diseño pareado, k = 3). Si Friedman resulta significativo haremos post-hoc con Wilcoxon pareado y ajuste Holm.
+
+## Prueba estadística
+
+```{r}
+friedman <- friedman.test(Rendimiento ~ Version | Instancia, data = muestraP)
+friedman
+
+posthoc <- pairwise.wilcox.test(muestraP$Rendimiento, muestraP$Version, p.adjust.method = "holm", paired = TRUE, exact = FALSE)
+posthoc
+```
+
+## Resultados y conclusión
+
+El p-values obtenido de la prueba de friedman es p-value < 0.05, por lo que refutamos H0 en favor a HA, a lo cual se concluye Al comparar las mismas instancias con iguales características, las mejores soluciones encontradas por las diferentes versiones (A, B, C) del algoritmo tienen al menos uno de ellos rendimientos distintos para nodos >= 45.
+
+
+---

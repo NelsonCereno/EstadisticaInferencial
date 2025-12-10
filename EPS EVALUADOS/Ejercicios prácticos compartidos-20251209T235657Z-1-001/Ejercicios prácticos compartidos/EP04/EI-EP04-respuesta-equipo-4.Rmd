@@ -1,0 +1,212 @@
+---
+title: "Ep4-equipo-4"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggpubr)
+```
+
+
+# Pregunta 1: Crecimiento de plantas
+
+Se desea analizar si existe un cambio significativo en el crecimiento de 25 plantas antes y después de aplicar un tratamiento.
+Como se trata de datos dicotómicos en dos momentos (antes y después), se utilizará la Prueba de McNemar.
+
+Hipótesis:
+
+H0: No hay diferencia en el crecimiento antes y después.
+HA: Sí hay diferencia en el crecimiento antes y después.
+
+```{r}
+# Construir la tabla de contingencia (datos de crecimiento antes y después)
+planta <- seq(1:25)
+
+# 7 plantas: Bajo antes -> Bajo después
+# 3 plantas: Bajo antes -> Alto después
+# 9 plantas: Alto antes -> Bajo después
+# 6 plantas: Alto antes -> Alto después
+
+crecimiento_antes <- c(rep("Bajo", 10), rep("Alto", 15))
+crecimiento_despues <- c(rep("Bajo", 7), rep("Alto", 3), rep("Bajo", 9), rep("Alto", 6))
+
+datos <- data.frame(planta, crecimiento_despues, crecimiento_antes)
+tabla <- table(crecimiento_despues, crecimiento_antes)
+
+print(tabla)
+
+# Aplicar la prueba de McNemar a la tabla
+prueba_1 <- mcnemar.test(tabla, correct = FALSE)
+print(prueba_1)
+```
+
+Resultado: p-value = 0.08326 > 0.05 → no se rechaza H0.
+No hay evidencia suficiente para afirmar que el tratamiento haya cambiado significativamente el crecimiento de las plantas.
+
+
+# Pregunta 2: Preferencias de juegos de mesa según sexo
+
+Un grupo de 17 chicos y 10 chicas manifestaron su juego favorito: ajedrez o Monopoly, se pide determinar si existe relación entre el sexo de la persona y la preferencia de juego.
+
+Como es una tabla de contingencia 2x2, se utilizará la Prueba exacta de Fisher.
+
+Hipótesis:
+
+H0: No hay relación entre sexo y preferencia de juego.
+HA: Sí hay relación entre sexo y preferencia de juego.
+
+```{r}
+# ---------------------------------------------------------------
+# Construir los datos y la tabla de contingencia
+Sexo <- c(rep("Chico", 8 + 9),
+          rep("Chica", 7 + 3))
+
+Juego <- c(rep("Ajedrez", 8),
+           rep("Monopoly", 9),
+           rep("Ajedrez", 7),
+           rep("Monopoly", 3))
+
+Sexo <- factor(Sexo, levels = c("Chico", "Chica"))
+datos <- data.frame(Sexo, Juego)
+
+tabla <- xtabs(~., datos)
+print(tabla)
+# ---------------------------------------------------------------
+# Aplicar la prueba exacta de Fisher
+prueba_1 <- fisher.test(tabla)
+print(prueba_1)
+```
+
+Resultado: p-value = 0.4244 > 0.05 → no se rechaza H0.No hay evidencia de relación entre el sexo y la preferencia por ajedrez o Monopoly.
+
+
+
+# Pregunta 3: Métodos de entrenamiento en gimnasios
+
+Dos gimnasios aplican distintos métodos de entrenamiento (Patadas, Puños, Agarres) y se quiere evaluar si las distribuciones son homogéneas. se pide determinar si existe homogeneidad en la distribución de métodos entre los gimnasios.
+
+Se utiliza la **Prueba chi-cuadrado de homogeneidad.
+
+Hipótesis:
+
+H0: Las distribuciones son iguales en ambos gimnasios.
+HA: Al menos un método tiene distribución distinta.
+
+```{r}
+# ---------------------------------------------------------------
+# Crear la tabla de contingencia con los datos de los gimnasios
+gimnasioA <- c(8, 5, 7)   # Patadas, Puños, Agarres
+gimnasioB <- c(8, 6, 5)
+
+tabla <- as.table(rbind(gimnasioA, gimnasioB))
+dimnames(tabla) <- list(Gimnasio = c("A", "B"),
+                        Metodo = c("Patadas", "Puños", "Agarres"))
+
+# Definir condiciones y nivel de significación
+minima_frec_esperada <- 5
+alfa <- 0.05
+
+# Mostrar la tabla
+print(tabla)
+
+cat("\n\nPrueba global:\n")
+cat("==============\n\n")
+
+# Obtener las frecuencias esperadas
+sumas_filas <- apply(tabla, 1, sum)
+sumas_columnas <- apply(tabla, 2, sum)
+suma_total <- sum(tabla)
+esperadas <- outer(sumas_filas, sumas_columnas, "*") / suma_total
+esperadas <- round(esperadas, 1)
+dimnames(esperadas) <- list(Gimnasio = c("A", "B"),
+                            Metodo = c("Patadas", "Puños", "Agarres"))
+
+# Realizar prueba chi-cuadrado de homogeneidad
+prueba <- chisq.test(tabla)
+
+# Mostrar las frecuencias esperadas y verificar condición mínima
+print(esperadas)
+cat("Frecuencias esperadas bajo", minima_frec_esperada)
+cat(":", sum(esperadas < minima_frec_esperada), "\n")
+
+# Mostrar resultado de la prueba
+print(prueba)
+```
+
+Resultado: p-value = 0.8192 > 0.05 → no se rechaza H0. Las distribuciones de métodos de entrenamiento son homogéneas entre los dos gimnasios.
+
+
+
+# Pregunta 4: Estrategias publicitarias
+
+Una agencia de marketing desea evaluar si existen diferencias en la efectividad de tres estrategias publicitarias para promover un producto. Se tomó una muestra de 50 personas (semilla = 222).
+
+Como se comparan proporciones de éxito en más de dos estrategias con datos apareados, se usa la Prueba Q de Cochran.
+
+Hipótesis:
+
+H0: Las proporciones de aceptación son iguales en las tres estrategias.
+HA: Al menos una estrategia difiere en su proporción de aceptación.
+
+```{r}
+# ---------------------------------------------------------------
+# Cargar librerías
+library(tidyverse)
+library(RVAideMemoire)
+
+# Fijar semilla y leer datos
+set.seed(222)
+datos <- read.csv2("EP04 Datos.csv")
+
+# Seleccionar muestra de 50 personas
+muestra <- datos %>% sample_n(50)
+
+# Convertir respuestas A/R a 1/0
+muestra_bin <- muestra %>%
+  mutate(across(starts_with("estrategia"),
+                ~ ifelse(. == "A", 1, 0)))
+
+# Crear columna de instancia (id)
+muestra_bin$instancia <- 1:nrow(muestra_bin)
+
+# Llevar la matriz a formato largo
+datos_largos <- muestra_bin %>%
+  pivot_longer(cols = starts_with("estrategia"),
+               names_to = "estrategia",
+               values_to = "resultado")
+
+datos_largos$instancia <- factor(datos_largos$instancia)
+datos_largos$estrategia <- factor(datos_largos$estrategia)
+
+# Definir condiciones y nivel de significación
+minimo_tamaño_muestra <- 24
+alfa <- 0.05
+
+cat("Prueba global:\n")
+cat("==============\n\n")
+
+# Mostrar tamaño de la muestra
+N <- nrow(muestra_bin[, -ncol(muestra_bin)]) # solo las columnas de estrategias
+cat("Tamaño de la muestra:", N, " ")
+cat(ifelse(N > minimo_tamaño_muestra, ">", "<="))
+cat(minimo_tamaño_muestra, "\n")
+
+# Realizar la prueba Q de Cochran
+prueba <- cochran.qtest(resultado ~ estrategia | instancia,
+                        data = datos_largos, alpha = 0.05)
+
+# Mostrar el resultado de la prueba
+print(prueba)
+```
+
+Resultado: p-value = 0.4516 > 0.05 → no se rechaza H0. No hay evidencia de que las estrategias publicitarias difieran significativamente en efectividad.
+
+
+
+Se editó y arreglaron las respuestas escritas con ayuda de chat-GPT.
+Se utilizó el código de la lectura correspondiente al EP (directamente, ya que no me alcanzó el tiempo para editarlo para que quede más bonito)

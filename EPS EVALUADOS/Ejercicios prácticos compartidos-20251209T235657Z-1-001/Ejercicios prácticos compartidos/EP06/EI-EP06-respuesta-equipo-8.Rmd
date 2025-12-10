@@ -1,0 +1,142 @@
+---
+title: "EI-EP06-respuesta-equipo-8"
+author: ""
+date: "2025-09-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggpubr)
+library(dplyr)
+library(pwr)
+library(rcompanion)
+library(RVAideMemoire)
+library(tidyr)
+library(ez)
+```
+
+<h2>**Contexto**</h2>
+Un equipo de investigadores del área de interacción humano-información está estudiando si el área temática y el nivel de dificultad del problema de información influyen en el tiempo (en segundos) que toma un usuario en formular una consulta de búsqueda para resolver dicho problema. Para ello, han reclutado a un grupo de participantes voluntarios, asignados aleatoriamente a distintos grupos. Cada participante debe resolver tres problemas de información con diferentes niveles de dificultad: baja, media y alta. A su vez, cada grupo debe resolver problemas relacionados a una temática diferente. Los datos recolectados contemplan las siguientes variables:
+
+ - **id**:	identificador único de cada participante.
+ - **area**:	Área temática de los problemas que el participante debe responder. Variable categórica con los niveles Arquitectura, Biología, Computación, Economía, Física, Leyes, Literatura, Matemáticas, Música, Pedagogía, Psicología, Química.
+ - **dificultad**:	Nivel de dificultad del problema resuelto. Variable categórica con los niveles Baja, Media y Alta.
+ - **tiempo**:	Tiempo, en segundos, que toma al participante formular la consulta.
+
+<h2>**Pregunta**</h2>
+En este momento, los investigadores buscan determinar si existen diferencias en el tiempo que tardan los usuarios en formular consultas para problemas con diferente nivel de dificultad en el área de Psicología
+
+```{r}
+datos<- read.csv("EP06 Datos.csv")
+head(datos)
+
+#filtramos los datos, y convertimos variables a factor
+
+datos_psico <- filter(datos, area=="Psicología") %>%
+  mutate(id = factor(id)) %>%
+  mutate(area = factor(area)) %>%
+  mutate(dificultad = factor(dificultad, levels = c("Baja", "Media", "Alta"), ordered = TRUE))
+head(datos_psico)
+```
+
+Ahora definiremos las hipótesis a contrastar
+
+- $H_0$: En promedio no hay diferencias en el tiempo que tardan los usuarios en formular consultas para problemas con diferente nivel de dificultad en el área de física.
+- $H_a$: Existe al menos un par de medias que es diferente en el tiempo que tardan los usuarios en formular consultas para problemas con diferente nivel de dificultad en el área de física.
+
+
+Ahora verificaremos las condiciones para realizar la prueba ezANOVA de una vía para muestras repetidas.
+
+1) La escala con que se mide la variable dependiente tiene las propiedades de una escala de
+ intervalos iguales, como el tiempo es una medida física, entonces la distancia entre dos medidas diferentes siempre será la misma al cambiar su posición.
+2) Las observaciones son independientes al interior de cada muestra, basándonos en el enunciado, los datos fueron tomados aleatoriamente a distintos grupos. Además, la muestra considerada es menor al 10% de todos los usuarios que formulan consultas a problemas de la temática de física.
+3) Se puede suponer razonablemente que la(s) poblacion(es) de origen sigue(n) una distribución
+ normal, esto lo probaremos ocupando un gráfico qqplot:
+ 
+```{r}
+g1 <- ggqqplot(datos_psico, x="tiempo", y="dificultad",color="dificultad",alpha=0.7,
+               palette=c("steelblue","steelblue1","steelblue4"))
+
+g1 <- g1 + facet_wrap(~ dificultad)
+g1 <- g1 + rremove("x.ticks") + rremove("x.text")
+g1 <- g1 + rremove("y.ticks") + rremove("y.text")
+g1 <- g1 + rremove("axis.title")
+print(g1)
+```
+  
+Dado que existen algunos datos que tienden a alejarse de la normalidad, ocuparemos una significancia $\alpha = 0.01$ para ser más rigurosos y no cometer un error de tipo I. Con esto se cumple la condición de normalidad, ya que la mayoría de los datos la siguen (basándose en el gráfico qqplot)
+
+4) La matriz de varianzas-covarianzas es esférica, las varianzas entre los diferentes niveles de las
+ medidas repetidas deben ser iguales, esta condición la verificaremos más adelante ocupando la prueba ezANOVA, ya que esta hace un test de esfericidad, y también hace automáticamente correcciones a los resultados de la prueba.
+ 
+ 
+Revisadas las condiciones de la prueba pasamos a realizarla.
+
+```{r}
+alfa<-0.01
+prueba <- ezANOVA(datos_psico, dv=tiempo, within = dificultad, wid = id, return_aov = TRUE, detailed = TRUE)
+print(prueba)
+```
+
+Ya que tenemos los resultados de la prueba, analizamos los valores para llegar a la respuesta. Pero antes de hablar del valor p de la prueba, el cual es el principal estadístico para decidir cuál hipótesis rechazar, vamos a revisar la condición de esfericidad que nos quedó pendiente del resto de condiciones.
+
+Como ya se adelantó, la prueba ezANOVA realizó internamente otra prueba de hipótesis: la prueba de esfericidad de Mauchly. La hipótesis nula de la prueba es que los datos cumplen con la condición de esfericidad. Con los valores $W=0.9970659$ y $p=0.7475901$ se determina que es un error rechazar la hipótesis nula. Con esto resuelto, al fin podemos decir que la prueba ANOVA cumple con todas las condiciones, y no es necesario usar correcciones de esfericidad.
+
+Regresando a la prueba principal, obtenemos las medidas $F=21.67799$ y $p=1.158026 \times 10^{-9}$, y manteniendo la significancia establecida $\alpha = 0.01$ concluimos que no existe evidencia suficiente que respalde a la hipótesis nula, y se rechaza en favor de la alternativa. En palabra menos técnicas, con un 99% de confianza, se concluye que existe al menos un par de dificultades con tiempos diferentes para formular consultas en relación a los tiempos de el area de Psicología.
+
+
+<h2>**Procedimientos Post-Hoc**</h2>
+
+Ahora vienen los procedimientos Post-Hoc, los que nos permitirán saber en particular cuáles son los pares de grupos que presentan diferencias significativas. Para hacernos una idea inicial de cuáles son las configuraciones que deberíamos tomar en las pruebas se creará un gráfico del tamaño del efecto de las muestras. De este modo podremos saber cuáles son las distancias entre cada muestra.
+
+```{r}
+graficoEfecto <- ezPlot(data = datos_psico, dv = tiempo, wid = id, within = dificultad,
+                        y_lab = "Tiempo promedio para formular la pregunta [s]", x_lab = "Dificultad", x = dificultad)
+graficoEfecto <- graficoEfecto + theme_pubr()
+graficoEfecto[["layers"]][[1]][["aes_params"]] <- list(colour = "steelblue" , alpha = 0.7)
+
+print(graficoEfecto)
+```
+
+Al revisar el gráfico, podemos apreciar una clara diferencia entre las 3 dificultades alta, media y baja lo cual concuerda con lo que afirmamos en base al p value de la prueba ezANOVA, acontinuación para analizar más en profundidad lo visto en el gráfico, aplicaremos una prueba post-hoc de holm
+
+```{r}
+prueba_holm <- pairwise.t.test(datos_psico[["tiempo"]], datos_psico[["dificultad"]], p.adj = "holm", paired = TRUE, conf.level = 1- alfa)
+prueba_holm
+```
+De esta prueba post-hoc de holm (hecha con una corración del p value ocupando holm) realizada para una prueba ANOVA de muestras correlacionadas podemos confirmar lo que se pudo analizar del gráfico, teniendo en cuenta que la prueba post hoc que utilizaremos ocupara la misma hipotesis nula de la prueba ezANOVA, dicho esto, podemos apreciar que la dificultad baja y alta con un p value de $9.9 \times 10^{-9}$ tienen medias diferentes, y la dificultad media con la alta con un p value de $7.1 \times 10^{-6}$ podemos afirmar que las medias de estas son diferentes, y lo particular es que en el caso de la dificultad baja con la media tienen un p value de $0.13$ lo cual tomando un nivel de significancia de $0.01$ podemos decir que pueden ser iguales, pero el p value esta demasiado cerca al $0.01$ lo cual tambien se vee en el grafico donde las medias tiene una pequeña diferencia.
+
+Por lo que finalmente podemos concluir que existe una diferencia signifcativa de los tiempo en la formulación de consultas de los participantes que pertenecen al área de psicología cuando responden preguntas de nivel de dificultad alta. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

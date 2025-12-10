@@ -1,0 +1,214 @@
+---
+title: EI-EP06-respuesta-equipo-6
+author: "yo"
+output: html_document
+---
+
+```{r}
+# install.packages(c("ez", "DescTools", "ggpubr", "tidyverse", "emmeans", "nlme", "car", "ggplot2"))
+
+library(ez)
+library(DescTools)
+library(ggpubr)
+library(tidyverse)
+library(emmeans)
+library(nlme)
+library(car)
+library(ggplot2)
+```
+
+# Hipótesis
+
+Hipótesis nula (H0):
+Los tiempos promedio de formulación de consultas en el área de Leyes son iguales entre los distintos niveles de dificultad (Baja, Media y Alta).
+
+μBaja = μMedia = μAlta
+
+Hipótesis alternativa (HA):
+Al menos uno de los niveles de dificultad difiere en su tiempo promedio de formulación de consultas.
+
+---
+
+# Verificación de las condiciones para ANOVA
+
+1. Independencia de las observaciones
+
+Los datos provienen de un grupo de participantes voluntarios, para cada uno se calcula el tiempo que tardan los usuarios en formular consultas para problemas con diferente nivel de dificultad en el área de Leyes. Los niveles son Baja, Media y Alta.
+Dado que en todo el mundo se hacen consultas sobre estas temáticas (billones de personas que pueden hacer preguntas de búsqueda en diferentes áreas), podemos suponer que este grupo de participantes es menos del 10% de la población, lo que nos permite estar más seguros de que son datos independientes para cada participante.
+Además, supondremos que la formulación de las preguntas de las diferentes dificultades no tiene dependencia entre los participantes, de forma que ningún participante influye en otro de ninguna manera.
+Cada participante se mide en las tres pruebas, lo que implica dependencia intra-sujeto, es decir, para cada sujeto se le hace formular consultas de diferente dificultad.
+
+---
+
+2. Normalidad de los residuos
+
+Se asegura la normalidad de los tiempos de formulación de consultas para cada nivel de dificultad (Baja, Media y Alta) con gráficos Q-Q y pruebas estadísticas.
+
+```{r}
+# Cargar datos
+datos <- read_csv("EP06 Datos.csv")
+
+# Filtrar área de interés: Leyes
+datos_leyes <- datos %>% 
+  filter(area == "Leyes") %>%
+  mutate(
+    id = as.factor(id),
+    dificultad = factor(dificultad, levels = c("Baja","Media","Alta"))
+  )
+
+# Gráfico Q-Q por nivel de dificultad
+g <- ggqqplot(datos_leyes, x = "tiempo", y = "dificultad", color = "dificultad")
+g <- g + facet_wrap(~ dificultad)
+g <- g + rremove("x.ticks") + rremove("x.text")
+g <- g + rremove("y.ticks") + rremove("y.text")
+g <- g + rremove("axis.title")
+print(g)
+
+# Tamaño de cada grupo
+conteos <- datos_leyes %>%
+  group_by(dificultad) %>%
+  summarise(n = n(), .groups = "drop")
+conteos
+```
+
+dificultad     n
+Baja        200
+Media       200
+Alta        200
+
+Prueba de Shapiro-Wilk para cada nivel de dificultad:
+
+```{r}
+shapiro_resultados <- lapply(split(datos_leyes$tiempo, datos_leyes$dificultad), shapiro.test)
+shapiro_resultados
+```
+
+Baja   : W = 0.99205, p-value = 0.3476
+Media  : W = 0.99250, p-value = 0.3975
+Alta   : W = 0.99291, p-value = 0.4488
+
+Conclusión sobre la normalidad: en todos los casos de la prueba de Shapiro p > 0.05 → no hay suficiente evidencia para rechazar la normalidad.
+
+---
+
+3. Homogeneidad de varianzas
+
+Se revisa la homocedasticidad con boxplots y la prueba de Levene para observar la dispersión.
+
+```{r}
+# Boxplot
+ggplot(datos_leyes, aes(x = dificultad, y = tiempo, fill = dificultad)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Boxplot de tiempos de formulación de consultas por nivel de dificultad",
+       x = "Nivel de dificultad",
+       y = "Tiempo (segundos)") +
+  theme(legend.position = "none")
+```
+
+```{r}
+# Prueba de Levene
+levene_result <- leveneTest(tiempo ~ dificultad, data = datos_leyes)
+levene_result
+```
+
+Levene's Test for Homogeneity of Variance (center = median)
+Df F value  Pr(>F)
+group   2  3.2597  0.03908 \*
+597
+
+Conclusión sobre la homocedasticidad: p = 0.039 < 0.05 → leve evidencia de heterocedasticidad.
+Para mayor rigor, se empleará desde ahora en adelante un nivel de significancia más estricto (alfa = 0.01).
+
+---
+
+4. Esfericidad
+
+Se evalúa con la prueba de Mauchly en el ANOVA de medidas repetidas.
+
+```{r}
+anova_ez <- ezANOVA(
+  data = datos_leyes,
+  dv = tiempo,
+  wid = id,
+  within = dificultad,
+  detailed = TRUE
+)
+anova_ez
+```
+
+ANOVA
+Effect       DFn DFd     SSn      SSd        F            p p<.05
+1 dificultad    2 398 8178.62 24012.71 67.7785 4.65e-26     \*
+
+Mauchly's Test for Sphericity
+Effect       W     p
+1 dificultad 0.76  0.03
+
+Sphericity Corrections
+Effect       GGe   p\[GG]   HFe   p\[HF]
+1 dificultad 0.92  3.8e-11 0.95  2.6e-11
+
+Conclusión sobre esfericidad: W = 0.76, p = 0.03 < 0.05 → se viola esfericidad.
+Se aplican correcciones Greenhouse-Geisser y Huynh-Feldt con valor p < 0.001 (lo cual nos permite estar seguros de utilizarlas).
+
+---
+
+# Procedimiento ANOVA de medidas repetidas
+
+```{r}
+anova_ez$ANOVA
+```
+
+Effect       DFn DFd       F        p
+dificultad     2 398   67.78  4.65e-26  \*
+
+Conclusión ANOVA:
+F(2,398) = 67.78, p < 0.001 → se rechaza la hipótesis nula en favor de la hipótesis alternativa:
+Existen diferencias significativas en los tiempos de consulta entre los niveles de dificultad.
+
+---
+
+# Análisis post-hoc
+
+Dado que el ANOVA mostró diferencias significativas, se procede a realizar comparaciones múltiples.
+
+```{r}
+# Modelo para post-hoc
+prueba_aov <- aov(tiempo ~ dificultad + Error(id/dificultad), data = datos_leyes)
+
+medias_estimadas <- emmeans(prueba_aov, "dificultad")
+comparaciones <- contrast(medias_estimadas, method = "pairwise", adjust = "tukey", infer = TRUE, level = 0.99)
+summary(comparaciones, infer = TRUE)
+```
+
+contrast     estimate   SE   df lower.CL upper.CL t.ratio p.value
+Baja - Media   -6.64 0.777 398    -8.92   -4.37   -8.56   <.0001
+Baja - Alta    -8.63 0.777 398   -10.91   -6.36  -11.12   <.0001
+Media - Alta   -1.99 0.777 398    -4.27    0.29   -2.56    0.029
+
+Conclusiones post-hoc:
+
+Baja vs Media: p < 0.001 → diferencias significativas.
+Baja vs Alta: p < 0.001 → diferencias significativas.
+Media vs Alta: p = 0.029 no suficientemente significativa al 1%, pero se debe observar con detención igualmente por el valor p pequeño.
+
+---
+
+# Conclusión general
+
+El ANOVA de medidas repetidas mostró que existen diferencias significativas en el tiempo que tardan los usuarios en formular consultas según el nivel de dificultad en el área de Leyes.
+
+El análisis post-hoc nos permite decir que:
+
+Los tiempos aumentan con la dificultad, notablemente entre la dificultad baja vs. media y alta.
+Aunque la diferencia entre Media y Alta puede no ser suficientemente significativa, podemos observar una posible diferencia, la cual se debería verificar con una investigación más detallada.
+
+A mayor dificultad del problema, los usuarios requieren más tiempo para formular consultas.Podemos notarlo en el tiempo de formulación de preguntas de baja dificultad vs. media y alta dificultad, lo cual observamos que es un impacto directo del nivel de dificultad en la eficiencia de búsqueda cuando la pregunta a formular no es difícil de plantear, en comparación con aquellas que requieren un esfuerzo mental para formular una pregunta de mediana o alta dificultad.
+
+---
+
+Se limpió el código y la gramática con ayuda de ChatGPT.
+Se utilizó el material y código de la lectura para responder a la pregunta.
+
+

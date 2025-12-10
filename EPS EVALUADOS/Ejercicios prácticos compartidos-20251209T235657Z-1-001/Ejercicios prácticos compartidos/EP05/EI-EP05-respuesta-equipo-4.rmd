@@ -1,0 +1,243 @@
+---
+title: "ANOVA en tiempos de resolución de cubo 2x2x2 grupo 4"
+author: "yo"
+output: html_document
+---
+
+```{r}
+install.packages(c("ez", "DescTools", "ggpubr", "tidyverse", "emmeans", "nlme", "car", "ggplot2"))
+
+library(ez)
+library(DescTools)
+library(ggpubr)
+library(tidyverse)
+library(emmeans)
+library(nlme)
+library(car)
+library(ggplot2)
+```
+
+Hipótesis nula (H0):
+
+Los tiempos promedio de resolución de cubos 2x2x2 son iguales entre los países participantes de Colombia, Ecuador y Argentina.
+
+μArgentina = μColombia = μEcuador
+
+Hipótesis alternativa (HA):
+
+Al menos uno de los países participantes de Colombia, Ecuador y Argentina tiene un tiempo promedio de resolución diferente, tal que existe al menos una media distinta entre los tres grupos.
+
+# Verificación de las condiciones para ANOVA
+
+## 1. Independencia de las observaciones
+
+Los datos provienen de una muestra de participantes de un torneo de cubos Rubik.
+Cada fila corresponde a los tiempos de resolución de un participante individual, único e irrepetible, sobre las varias pruebas de cubo Rubik en la competencia.
+Cada participante participa como máximo una vez en cada competencia, por lo que no se puede repetir.
+Supondremos, además, que los participantes no influyen los unos a los otros, además de que no influye el momento temporal en el que resolvieron cada cubo Rubik de cada una de las competencias en las que participa cada individuo.
+Se debe acotar, además, dada la pregunta escogida, que observaremos solo una competencia: la de cubo Rubik 2x2x2, para los participantes de países: Ecuador, Argentina y Colombia.
+Por lo que, para cada participante, dado que se filtra el tipo de competencia, se tiene su categoría nacionalidad acotada a los países ya mencionados y el tiempo que se demoraron en resolver el cubo Rubik.
+Supondremos, a efectos prácticos, que la muestra representa a menos del 10% de la cantidad de jugadores de cubos Rubik sudamericanos, por lo que suponemos independencia de las observaciones.
+
+---
+
+## 2. Normalidad de los residuos
+
+Se asegura la normalidad de los tiempos de resolución de los cubos 2x2x2 para cada país (Argentina, Colombia y Ecuador) mediante gráficos Q-Q.
+
+```{r}
+
+# Cargo datos
+datos <- read_csv2("EP05 Datos.csv")
+
+# Filtro solo cubo 2x2x2 y países que revisaremos
+datos_cubo <- datos %>%
+  filter(tipo == "2x2x2", pais %in% c("Argentina","Colombia","Ecuador"))
+
+# Gráfico Q-Q
+g <- ggqqplot(datos_cubo, x = "tiempo", y = "pais", color = "pais")
+g <- g + facet_wrap(~ pais)
+g <- g + rremove("x.ticks") + rremove("x.text")
+g <- g + rremove("y.ticks") + rremove("y.text")
+g <- g + rremove("axis.title")
+print(g)
+
+# Tamaño de cada grupo
+conteos <- datos_cubo %>%
+  group_by(pais) %>%
+  summarise(n = n(), .groups = "drop")
+conteos
+```
+
+pais          n
+Argentina    38
+Colombia     40
+Ecuador      39
+
+Además, se puede verificar la normalidad con la prueba de Shapiro-Wilk.
+
+```{r}
+# Prueba de Shapiro-Wilk por país
+shapiro_resultados <- lapply(split(datos_cubo$tiempo, datos_cubo$pais), shapiro.test)
+shapiro_resultados
+```
+
+Argentina: W = 0.956, p-value = 0.1453
+Colombia : W = 0.971, p-value = 0.3740
+Ecuador  : W = 0.956, p-value = 0.1293
+
+Interpretación: en todos los países p > 0.05 → no se logra rechazar normalidad, por lo que supondremos normalidad con un 95% de confianza.
+
+---
+
+## 3. Homocedasticidad
+
+Para revisar la homocedasticidad de manera manual:
+
+```{r}
+
+argentinos <- datos_cubo$tiempo[datos_cubo$pais == "Argentina"]
+colombianos <- datos_cubo$tiempo[datos_cubo$pais == "Colombia"]
+ecuatorianos <- datos_cubo$tiempo[datos_cubo$pais == "Ecuador"]
+
+varianza_argentinos <- var(argentinos)
+varianza_colombianos <- var(colombianos)
+varianza_ecuatorianos <- var(ecuatorianos)
+
+varianza_vector <- c(varianza_argentinos, varianza_colombianos, varianza_ecuatorianos)
+varianza_max <- max(varianza_vector)
+varianza_min <- min(varianza_vector)
+razon_varianza <- varianza_max / varianza_min
+razon_varianza
+```
+
+La razón de la varianza que obtenemos es 1.33.
+
+```{r}
+# Graficamos Boxplot para observar gráficamente la varianza
+ggplot(datos_cubo, aes(x = pais, y = tiempo, fill = pais)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Boxplot de tiempos de resolución por país",
+       x = "País",
+       y = "Tiempo (segundos)") +
+  theme(legend.position = "none")
+```
+
+```{r}
+# Prueba de Levene
+levene_result <- leveneTest(tiempo ~ pais, data = datos_cubo)
+levene_result
+```
+
+Levene's Test for Homogeneity of Variance (center = median)
+Df F value Pr(>F)
+group   2  0.2413  0.786
+114
+
+Conclusión de la prueba de Levene y sobre la varianza observada:
+La razón varianza máxima y varianza mínima es aproximadamente ≈ 1.33.
+p(Levene) = 0.786 > 0.05.
+Con estas pruebas y resultados podemos concluir que se cumple homocedasticidad.
+
+---
+
+## Procedimiento ANOVA de una vía
+
+Se aplica un ANOVA para comparar los tiempos promedio de resolución del cubo 2x2x2 entre los participantes de los países Argentina, Colombia y Ecuador, dado que todas las condiciones para hacer el ANOVA se cumplen.
+Se ha de notar que se utiliza ezANOVA debido a que la cantidad de personas por categoría no es la misma.
+
+```{r}
+datos_cubo$id <- 1:nrow(datos_cubo)
+
+anova_ez <- ezANOVA(
+  data = datos_cubo,
+  dv = tiempo,
+  wid = id,
+  between = pais,
+  detailed = TRUE
+)
+anova_ez
+```
+
+ANOVA
+Effect DFn DFd      SSn       SSd        F            p p<.05       ges
+1   pais   2 114 1.019461 0.8404617 69.13973 2.169245e-20     * 0.5481202
+
+Conclusión sobre la prueba ezANOVA dado los resultados:
+
+F(2,114) = 69.14, p < 0.001 → existen diferencias significativas entre países. Se rechaza la hipótesis nula en favor de la hipótesis alternativa:
+
+Al menos uno de los países participantes de Colombia, Ecuador y Argentina tiene un tiempo promedio de resolución diferente, tal que existe al menos una media distinta entre los tres grupos.
+
+---
+
+## Análisis post-hoc
+
+### 1. HSD de Tukey
+
+```{r}
+prueba_anova <- aov(tiempo ~ pais, data = datos_cubo)
+hsd <- TukeyHSD(prueba_anova, "pais", conf.level = 0.95)
+hsd
+```
+
+pais
+Colombia-Argentina -0.0398, p = 0.106 (ns)
+Ecuador-Argentina  -0.2154, p < 0.001 (sig)
+Ecuador-Colombia   -0.1756, p < 0.001 (sig)
+
+Conclusión sobre la prueba TukeyHSD:
+Con α = 0.05, Ecuador difiere de Argentina y Colombia, pero Argentina y Colombia no presentan diferencias significativas.
+
+---
+
+### 2. Otros métodos de ajuste
+
+```{r}
+# Holm
+holm <- pairwise.t.test(datos_cubo$tiempo, datos_cubo$pais,
+                        p.adj = "holm", pool.sd = TRUE, paired = FALSE,
+                        conf.level = 0.95)
+holm
+
+# Benjamini & Hochberg
+bh <- pairwise.t.test(datos_cubo$tiempo, datos_cubo$pais,
+                      p.adj = "fdr", pool.sd = TRUE, paired = FALSE,
+                      conf.level = 0.95)
+bh
+```
+
+Holm:
+Argentina-Colombia: p = 0.043 (no sig con α=0.01, significativo al borde 0.05)
+Argentina-Ecuador : p < 2e-16 (sig)
+Colombia-Ecuador  : p = 7.3e-15 (sig)
+
+Benjamini y Hochberg:
+Argentina-Colombia: p = 0.043 (no sig con α=0.01, significativo al borde 0.05)
+Argentina-Ecuador : p < 2e-16 (sig)
+Colombia-Ecuador  : p = 5.5e-15 (sig)
+
+Conclusión sobre post hoc métodos de ajuste: los tres métodos coinciden en que Ecuador difiere significativamente de Argentina y Colombia.
+La diferencia de las medias de Argentina y Colombia tiene sus reparos que debemos explicar a más detalle: como vemos en los gráficos boxplot, Argentina y Colombia tienen valores de varianza muy parecidos, pero no iguales.
+Esta diferencia es detectada por la prueba post hoc de Holm y Benjamini & Hochberg, pero debemos notar que esta diferencia es bastante pequeña, cercana al valor de significancia dado en la prueba (0.05). Tukey observa esta diferencia mayor al valor de significancia, por lo que considera la diferencia no significativa.
+Notamos, además, que dado que en todas las pruebas post hoc el valor p obtenido en la diferencia de medias Colombia–Ecuador y Argentina–Ecuador son mucho más pequeños en comparación con la diferencia de medias de Colombia–Argentina.
+Podemos concluir conservadoramente que efectivamente hay diferencias entre Colombia y Argentina, pero son pequeñas y poco significativas.
+
+---
+
+# Conclusión general
+
+El ANOVA mostró que existen diferencias significativas en los tiempos promedio de resolución del cubo 2x2x2 entre los participantes de los países Argentina, Colombia y Ecuador, por lo que se rechaza la hipótesis nula en favor de la hipótesis alternativa:
+Al menos uno de los países participantes de Colombia, Ecuador y Argentina tiene un tiempo promedio de resolución diferente, tal que existe al menos una media distinta entre los tres grupos.
+
+El análisis post-hoc confirma que Ecuador presenta tiempos significativamente distintos respecto de Argentina y Colombia, mientras que entre Argentina y Colombia hay pequeñas diferencias.
+
+Para los investigadores, esto indica que el país de origen se asocia al desempeño en la prueba de 2x2x2, lo que puede ser una variable significativa para mayor estudio.
+
+---
+
+Se limpió el código y la gramática con ayuda de ChatGPT.
+Se utilizó el material y procedimientos de la lectura para responder a la pregunta.
+
+

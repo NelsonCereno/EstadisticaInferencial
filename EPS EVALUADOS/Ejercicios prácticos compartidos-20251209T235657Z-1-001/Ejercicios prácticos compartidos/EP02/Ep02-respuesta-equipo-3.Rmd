@@ -1,0 +1,274 @@
+---
+title: "EP02-respuesta-equipo-3" 
+author: "Andre Cosio"
+date: "2025-08-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggpubr)
+```
+
+El Comité Olímpico de una gran potencia del atletismo está estudiando el programa de entrenamiento de varones para la competencia de 100 metros planos, por lo que ha recopilado datos de una muestra aleatoria de atletas:
+
+**Id:** Identificador único para cada atleta
+**Zona:** Zona del club deportivo o establecimiento educacional donde cada atleta fue formado (categórica: Centro-Norte, Centro-Sur, Sur)
+**Previo:** Mejor tiempo registrado por el atleta antes de ingresar al programa de entrenamiento (numérica, en segundos)
+**Posterior:** Mejor tiempo registrado por el atleta después de los primeros 6 meses del programa de entrenamiento (numérica, en segundos)
+
+*Se utilizó ChatGPT para la limpieza del código y el ordenamiento del informe.*
+*Se utilizaron los capítulos 3, 4, 5 y 6 de Perusall para las condiciones y procedimientos para desarrollar cada pregunta.*
+
+```{r}
+# Lectura de los datos
+datos <- read.csv2("EP02 Datos.csv")
+```
+
+---
+
+# Pregunta 1
+
+**El Comité Olímpico cree que el mejor tiempo medio de los atletas de la zona Centro-Norte después de ingresar al programa de entrenamiento es de 13,6 segundos. ¿Soportan los datos esta afirmación?**
+
+**Hipótesis:**
+
+Ho: el mejor tiempo medio de los atletas de la zona Centro-Norte después de ingresar al programa de entrenamiento es de 13,6 segundos
+
+$$
+H_o: \mu = 13.6
+$$
+
+HA: el mejor tiempo medio de los atletas de la zona Centro-Norte después de ingresar al programa de entrenamiento no es igual a 13,6 segundos
+
+$$
+H_A: \mu \neq 13.6
+$$
+
+Se revisan las condiciones para suponer normalidad y utilizar la prueba z:
+
+1. Observaciones independientes → se asume independencia ya que los datos se obtienen de una muestra aleatoria de la población y se supone que la muestra representa menos del 10% de la población.
+2. +30 observaciones o varianza poblacional → ninguna de las dos se cumple; no se menciona la varianza poblacional y son 26 observaciones.
+
+Dado que no se cumple la condición 2, se procede a utilizar la prueba T-Student. Debemos asegurarnos de que los datos tienen una distribución aproximada a la normal, lo que se hace con el gráfico Q-Q. El gráfico demuestra unos outliers a el area donde se puede suponer normalidad para el grafico Q-Q. Se realiza adicionalmente el test de Shapiro-Wilk. En este caso, el p-value fue 0.2, por lo que no se rechaza la normalidad al 95% de confianza.
+
+```{r}
+# Filtrar Centro-Norte
+atletas_CN <- datos |> filter(Zona == "Centro-Norte")
+
+# Gráfico Q-Q
+ggqqplot(atletas_CN, x = "Posterior", color = "steelblue",
+         title = "Q-Q plot: Centro-Norte (Posterior)")
+
+shapiro <- shapiro.test(atletas_CN$Posterior)
+shapiro
+
+# Prueba t de una muestra
+resultado1 <- t.test(atletas_CN$Posterior, mu = 13.6,
+                     alternative = "two.sided", conf.level = 0.95)
+resultado1
+```
+
+**Resultados:**
+
+* Media muestral = 13.367
+* IC95% = \[12.965 ; 13.770]
+* Estadístico t = -1.191, gl = 25, p-value = 0.245
+
+**Conclusión:**
+El p-valor > 0.05, por lo tanto no se rechaza H0. No hay evidencia suficiente para afirmar que la media posterior de los atletas de Centro-Norte sea diferente de 13.6 segundos.
+
+---
+
+# Pregunta 2
+
+**¿Sugieren los datos que la mejor marca de los atletas de la zona Centro-Sur se reduce en promedio menos de 4,7 segundos tras el entrenamiento?**
+
+**Hipótesis:**
+
+HO: la mejor marca de los atletas de la zona Centro-Sur se reduce en promedio 4,7 segundos tras el entrenamiento
+
+$$
+H_0: \mu = 4.7
+$$
+
+HA: la mejor marca de los atletas de la zona Centro-Sur se reduce en promedio menos de 4,7 segundos tras el entrenamiento
+
+$$
+H_A: \mu < 4.7
+$$
+
+Se revisan las condiciones para suponer normalidad y utilizar la prueba z:
+
+1. Observaciones independientes → se asume independencia ya que los datos provienen de una muestra aleatoria de la población.
+2. +30 observaciones o varianza poblacional → ninguna de las dos se cumple; no se menciona la varianza poblacional y son 27 observaciones.
+
+Dado que no se cumple la condición 2, se procede a utilizar la prueba T-Student. Se verifica normalidad mediante gráfico Q-Q y test de Shapiro-Wilk. No hay evidencia para decir que los datos no sigan una distribucion normal (p-value: 0.6839 en test de shapiro), además, el gráfico Q-Q demuestra que todos los puntos estan dentro del area azul claro, que es el area aceptable para una distribución lo suficientemente parecida a la normal.
+
+```{r}
+# Filtrar Centro-Sur
+atletas_CS <- datos |> filter(Zona == "Centro-Sur")
+
+# Variable de mejora
+mejora_CS <- atletas_CS$Previo - atletas_CS$Posterior
+
+# Gráfico Q-Q
+ggqqplot(mejora_CS, color = "steelblue",
+         title = "Q-Q plot: mejora Centro-Sur")
+
+# Test de Shapiro-Wilk para normalidad
+shapiro_CS <- shapiro.test(mejora_CS)
+shapiro_CS
+
+
+# Prueba t de una muestra
+resultado2 <- t.test(mejora_CS, mu = 4.7,
+                     alternative = "less", conf.level = 0.95)
+resultado2
+```
+
+**Resultados:**
+
+* Media muestral = 4.966
+* IC95% = (-Inf ; 5.076)
+* Estadístico t = 4.142, gl = 26, p-value = 0.9998
+
+**Conclusión:**
+El p-valor > 0.05, por lo que no se rechaza H0. No hay evidencia suficiente para afirmar que la mejora promedio sea menor a 4.7; de hecho, la media observada (4.97) es mayor.
+
+---
+
+# Pregunta 3
+
+**¿Es posible afirmar que, en promedio, los atletas de la zona Sur superaban a los de la zona Centro-Norte por más de 2 segundos antes del entrenamiento?**
+
+**Hipótesis:**
+
+HO: los atletas de la zona Sur superaban a los de la zona Centro-Norte por 2 segundos antes del entrenamiento
+
+$$
+H_0: \mu_{S} - \mu_{CN} = 2
+$$
+
+HA: los atletas de la zona Sur superaban a los de la zona Centro-Norte por más de 2 segundos antes del entrenamiento
+
+$$
+H_A: \mu_{S} - \mu_{CN} > 2
+$$
+
+**Condiciones para la prueba t de dos muestras independientes:**
+
+1. **Observaciones independientes:** Se asume independencia entre los atletas de cada zona, ya que los datos provienen de muestras aleatorias.
+2. **Normalidad de las poblaciones:** Las muestras son pequeñas, por lo que no se puede invocar directamente el Teorema Central del Límite. Se verifica mediante gráfico Q-Q y test de Shapiro-Wilk para cada grupo.
+3. Los p-values de Shapiro-Wilk son mayores a 0.05 (0.66 y  0.79 respectivamente) por lo que no hay evidencia suficiente para rechazar la normalidad y se puede aplicar la prueba t; además, el gráfico Q-Q demuestra que todos los puntos estan dentro del area azul claro, que es el area aceptable para una distribución lo suficientemente parecida a la normal.
+
+```{r}
+# Filtrar grupos
+datos_S  <- datos |> filter(Zona == "Sur")
+datos_CN <- datos |> filter(Zona == "Centro-Norte")
+
+previo_S  <- datos_S$Previo
+previo_CN <- datos_CN$Previo
+
+# Gráfico Q-Q
+ggqqplot(previo_S, color = "steelblue",
+         title = "Q-Q plot: Sur")
+ggqqplot(previo_CN, color = "steelblue",
+         title = "Q-Q plot: Centro-Norte")
+
+shapiro.test(datos_S$Previo)
+shapiro.test(datos_CN$Previo)
+
+# Prueba t de dos muestras (no pareadas)
+resultado3 <- t.test(previo_S, previo_CN,
+                     alternative = "greater", conf.level = 0.95)
+resultado3
+
+# Diferencia de medias observada
+diferencia <- mean(previo_S) - mean(previo_CN)
+diferencia
+```
+
+**Resultados:**
+
+* Media Sur = 14.113
+* Media Centro-Norte = 16.454
+* Diferencia = -2.341
+* IC95% = (-2.806 ; ∞)
+* Estadístico t = -8.437, gl ≈ 50, p-value = 1
+
+**Conclusión:**
+El p-valor = 1 indica que no hay evidencia suficiente para afirmar que los atletas del Sur superaban a los del Centro-Norte en más de 2 segundos.
+
+---
+
+# Pregunta 4
+
+**¿Será cierto que hay más atletas de la zona Centro-Norte que redujeron sus mejores marcas en al menos 2,9 segundos que atletas de la zona Sur que lo hicieron en al menos 1,9 segundos?**
+
+**Hipótesis:**
+
+HO: hay la misma proporción de atletas de la zona Centro-Norte que redujeron sus mejores marcas en ≥ 2,9 segundos que atletas de la zona Sur que lo hicieron en ≥ 1,9 segundos
+
+$$
+H_0: p_{CN} = p_{S}
+$$
+
+HA: hay más atletas de la zona Centro-Norte que redujeron sus mejores marcas en ≥ 2,9 segundos que atletas de la zona Sur que lo hicieron en ≥ 1,9 segundos
+
+$$
+H_A: p_{CN} > p_{S}
+$$
+
+**Condiciones para la prueba de proporciones (método Wald / Wilson):**
+
+1. **Observaciones independientes:** Se asume independencia entre los atletas de las distintas zonas.
+2. **Condición de éxito-fracaso:** Para el método Wald, se requieren al menos 10 éxitos y 10 fracasos en cada grupo.
+
+En nuestro caso:
+
+* Centro-Norte: 16 éxitos y 10 fracasos → cumple
+* Sur: 6 éxitos y 22 fracasos → no cumple
+
+Como la condición de éxito-fracaso no se cumple para Sur, se opta por el **método de Wilson**, que es más robusto, permite casos con pocos éxitos o fracasos y tiene mejor cobertura.
+
+Por lo tanto, se aplica la prueba `prop.test()` con aproximación robusta.
+
+```{r}
+# Variable de mejora
+datos$Neto <- datos$Previo - datos$Posterior
+
+# Conteos
+CN_exito <- sum(datos$Zona == "Centro-Norte" & datos$Neto >= 2.9)
+CN_total <- sum(datos$Zona == "Centro-Norte")
+
+S_exito <- sum(datos$Zona == "Sur" & datos$Neto >= 1.9)
+S_total <- sum(datos$Zona == "Sur")
+
+# Tabla de contingencia
+tabla <- matrix(c(CN_exito, CN_total - CN_exito,
+                  S_exito, S_total - S_exito),
+                nrow = 2, byrow = TRUE,
+                dimnames = list(Zona = c("Centro-Norte", "Sur"),
+                                Resultado = c("Éxito", "Fracaso")))
+tabla
+
+# Prueba de proporciones con prop.test()
+resultado4 <- prop.test(c(CN_exito, S_exito),
+                        c(CN_total, S_total),
+                        alternative = "greater", correct = FALSE)
+resultado4
+```
+
+**Resultados:**
+
+* Éxitos CN = 16 de 26 (0.615)
+* Éxitos Sur = 6 de 28 (0.214)
+* χ² = 8.984, gl = 1, p-value = 0.00136
+* IC95% diferencia = \[0.199 ; 1.000]
+
+**Conclusión:**
+El p-valor < 0.05, por lo tanto se rechaza H0. Hay evidencia de que la proporción de atletas de Centro-Norte que mejoraron ≥ 2.9 segundos es mayor que la de Sur que mejoraron ≥ 1.9 segundos.

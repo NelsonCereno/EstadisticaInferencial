@@ -1,0 +1,213 @@
+---
+title: "EP04"
+output: html_document
+date: "2025-09-11"
+---
+1.- Un hotel está implementando un nuevo protocolo de limpieza para mejorar la calidad de servicio y la satisfacción de sus huéspedes. Para evaluar la efectividad de este protocolo, se seleccionaron aleatoriamente 25 habitaciones y se aplicó el protocolo de limpieza antiguo y nuevo de forma alternada. Después de la primera limpieza, se evaluó la calidad de limpieza de cada habitación. Luego, después de la segunda limpieza con el protocolo alternativo, se volvió a evaluar la calidad de limpieza. Los resultados se presentan a continuación:
+4 habitaciones mostraron una calidad de limpieza baja en ambas ocasiones.
+5 habitaciones con calidad de limpieza baja con el protocolo antiguo mostraron una mejora con el nuevo.
+9 habitaciones mantuvieron una alta calidad de limpieza con ambos protocolos.
+7 habitaciones mostraron una alta calidad de limpieza con el protocolo antiguo, pero una disminución con el protocolo nuevo.
+¿Hay evidencia de que el nuevo protocolo de limpieza haya tenido un efecto significativo en la calidad de limpieza de las habitaciones del hotel?
+
+A raiz de los datos entregados, se logra observar que, como se está midiendo una "opinión" de antes y despues, se puede utilizar la prueba de McNemar, las hipotesis serían las siguientes
+
+H0: No existen cambios significativos con el nuevo protocolo de limpieza
+
+HA: Si existen cambios significativos con el nuevo protocolo de limpieza
+
+```{r}
+
+
+matriz <- matrix (c(4,7,5,9), nrow = 2,
+                  dimnames = list("Antiguo" = c("Baja", "Alta"),
+                                  "Nuevo" = c("Baja", "Alta")))
+matriz
+
+prueba <- mcnemar.test(matriz, correct = FALSE)
+
+prueba
+
+
+```
+Dado que el valor de p es de 0.5637, o sea, es mayor al nivel de significancia de 0.05, no se rechaza la hipotesis nula. Esto quiere decir que, no existe evidencia suficiente para afirmar que el nuevo protocolo de limpieza haya tenido un efecto en la calidad de limpieza de las habitaciones. 
+
+
+2.- Una agencia de marketing desea determinar si hay una diferencia significativa en la efectividad de tres estrategias publicitarias utilizadas para promocionar un nuevo producto. Para ello, se ha recopilado información de personas que fueron expuestas a las tres estrategias publicitarias, registrando si mostraron una aceptación (A) o rechazo (R) a cada una de ellas.
+¿Qué puede concluir la agencia de marketing sobre la efectividad de las estrategias publicitarias para promover el nuevo producto?
+Indicación: obtenga la muestra de 50 personas a partir del archivo “EP04 Datos.csv” que se encuentra en el directorio compartido, usando la semilla 347. Considere un nivel de significación α=0,05.
+
+
+Se empleó la prueba Q de Cochran por ser la prueba no paramétrica diseñada para comparar tres o más proporciones relacionadas o apareadas. Este diseño es adecuado ya que la misma muestra de 50 personas fue evaluada bajo las tres estrategias publicitarias (medidas repetidas), y la variable de respuesta es dicotómica (Aceptación "A" o Rechazo "R"). Se verificó el supuesto de tamaño de muestra (N = 150, que es mayor al mínimo requerido de 24).
+
+Hipótesis:
+
+H0: La proporción de aceptación (éxito) del producto es igual para las tres estrategias publicitarias.
+
+HA: La proporción de aceptación del producto es diferente para al menos una de las estrategias publicitarias.
+```{r}
+install.packages('RVAideMemoire')
+# Script: Prueba Q de Cochran para Estrategias Publicitarias
+library(dplyr)
+library(rcompanion)
+library(RVAideMemoire)
+library(tidyr)
+
+# Cargar datos y obtener muestra de 50 personas con semilla 347
+datos <- read.csv2("EP04 Datos.csv")
+set.seed(347)
+muestra <- datos[sample(nrow(datos), 50), ]
+
+# Convertir respuestas a numéricas (1 = A, 0 = R)
+muestra <- muestra %>%
+  mutate(
+    estrategia_1_num = ifelse(estrategia_1 == "A", 1, 0),
+    estrategia_2_num = ifelse(estrategia_2 == "A", 1, 0),
+    estrategia_3_num = ifelse(estrategia_3 == "A", 1, 0)
+  )
+
+# Llevar la matriz de datos a formato largo
+datos_largos <- muestra %>%
+  pivot_longer(cols = c("estrategia_1_num", "estrategia_2_num", "estrategia_3_num"),
+               names_to = "estrategia", 
+               values_to = "resultado") %>%
+  mutate(id = as.factor(id),
+         estrategia = as.factor(estrategia))
+
+# Definir condiciones y el nivel de significación
+minimo_tamaño_muestra <- 24
+alfa <- 0.05
+
+# Calcular el tamaño de la muestra
+N <- nrow(muestra) * 3  # 50 personas * 3 estrategias
+
+# Realizar la prueba Q de Cochran
+prueba_qc <- cochran.qtest(resultado ~ estrategia | id,
+                          data = datos_largos, 
+                          alpha = alfa)
+
+# Mostrar el tamaño de la muestra y el resultado de la prueba global
+cat("Prueba ómnibus:\n")
+cat("===============\n")
+cat("Tamaño de la muestra:", N, " ")
+cat(ifelse(N >= minimo_tamaño_muestra, ">= ", "< "))
+cat(minimo_tamaño_muestra, "\n")
+cat("\nResultado de la prueba Q de Cochran:\n")
+cat("------------------------------------\n")
+print(prueba_qc)
+
+# Realizar análisis post-hoc solo si la prueba ómnibus es significativa
+if(prueba_qc$p.value <= alfa) {
+  cat("\n\nAnálisis post-hoc:\n")
+  cat("==================\n")
+  
+  post_hoc <- pairwiseMcnemar(resultado ~ estrategia | id,
+                             data = datos_largos,
+                             method = "holm")
+  print(post_hoc)
+} else {
+  cat("\nNo se realizan pruebas post-hoc (la prueba ómnibus no fue significativa)\n")
+}
+```
+
+La prueba Q de Cochran arrojó un estadístico Q = 0.2424 con un valor p = 0.8858. Dado que el valor p es muy superior al nivel de significancia establecido (α = 0.05), no se rechaza la hipótesis nula. Por lo tanto, no existe evidencia estadísticamente significativa para afirmar que exista una diferencia en la efectividad entre las tres estrategias publicitarias para promover el nuevo producto. Las proporciones de aceptación muestrales (Estrategia 1: 52%, Estrategia 2: 48%, Estrategia 3: 52%) son estadísticamente indistinguibles. La agencia de marketing puede concluir, con un 95% de confianza, que las tres estrategias son igual de efectivas en términos de generar aceptación hacia el producto.
+
+
+3.- En otro planeta se realiza un estudio sobre la preferencia de hábitat de dos especies de alienígenas. Después de observar a una muestra de 17 alienígenas de la especie EA14012-A y 10 de la especie EA14013-B durante meses, se ha determinado que 4 alienígenas de la primera y 8 de la segunda prefieren hábitats subterráneos, mientras los demás prefieren hábitats acuáticos. ¿Existe relación entre las especies alienígenas y elegir hábitats subterráneos o hábitats acuáticos?
+
+Dado que tenemos dos muestras independientes (cada alienígena pertenece a una sola especie) y ambas variables son categóricas con dos niveles cada una, la prueba estadística adecuada es la prueba de independencia Chi-cuadrado de Pearson. Sin embargo, debido al tamaño pequeño de la muestra y especialmente porque algunas celdas tienen frecuencias esperadas bajas, debemos usar la prueba exacta de Fisher.
+
+Las frecuencias observadas son:
+
+EA14012-A: 4 subterráneo, 13 acuático
+
+EA14013-B: 8 subterráneo, 2 acuático
+
+Para determinar la prueba estadística adecuada, se calcularon las frecuencias esperadas bajo el supuesto de independencia entre la especie alienígena y la preferencia de hábitat. Estas se obtuvieron aplicando la fórmula 
+Eij = (Total Fila i X Total Columna j)/N. Los resultados mostraron que la frecuencia esperada para la combinación "EA14013-B y Subterráneo" fue de aproximadamente 4.44, valor que no cumple con el requisito mínimo de 5 observaciones esperadas por celda para aplicar la prueba Chi-cuadrado de Pearson de manera confiable. Por lo tanto, se justifica el uso de la prueba exacta de Fisher, diseñada para tablas de contingencia con muestras pequeñas o frecuencias esperadas insuficientes.
+
+Las hipótesis para la prueba son:
+H0: No existe asociación entre la especie alienígena y la preferencia de hábitat (las variables son independientes).
+
+HA: Existe asociación entre la especie alienígena y la preferencia de hábitat (las variables no son independientes).
+
+```{r}
+# Construir los datos y la tabla de contingencia
+Especie <- c(rep("EA14012-A", 17), rep("EA14013-B", 10))
+Habitat <- c(rep("Subterráneo", 4), rep("Acuático", 13), rep("Subterráneo", 8), rep("Acuático", 2))
+Habitat <- factor(Habitat, levels = c("Subterráneo", "Acuático"))
+datos <- data.frame(Habitat, Especie)
+tabla <- xtabs(~., datos)
+print(tabla)
+
+# Aplicar la prueba exacta de Fisher a la tabla de contingencia
+fisher_1 <- fisher.test(tabla)
+cat("\n")
+cat("Prueba exacta de Fisher usando la tabla de contingencia\n")
+cat("---\n")
+print(fisher_1)
+
+# Aplicar la prueba exacta de Fisher directamente a las muestras
+fisher_2 <- fisher.test(Especie, Habitat)
+cat("Prueba exacta de Fisher usando las muestras:\n")
+cat("---\n")
+print(fisher_2)
+
+```
+La prueba exacta de Fisher arrojó un valor p = 0.0069, que es muy inferior al nivel de significancia establecido (α = 0.05), por lo que se rechaza la hipótesis nula de independencia. Existe evidencia estadísticamente significativa para afirmar que sí existe una asociación entre la especie alienígena y la preferencia de hábitat. Las proporciones muestrales revelan un patrón claro: mientras el 76.5% (13/17) de la especie EA14012-A prefiere hábitats acuáticos, el 80.0% (8/10) de la especie EA14013-B prefiere hábitats subterráneos. Esta drástica diferencia en las preferencias permite concluir, con un 95% de confianza, que la especie alienígena está directamente relacionada con la elección de hábitat, siendo EA14012-A predominantemente acuática y EA14013-B predominantemente subterránea.
+
+
+
+4.- Se llevó a cabo una investigación entre dos grupos demográficos: residentes urbanos y suburbanos. Seleccionaron aleatoriamente 35 residentes urbanos y 30 residentes suburbanos, y se les preguntó sobre su preferencia de transporte para desplazarse en la ciudad entre tres opciones comunes, obteniéndose que de los primeros 15 usan el Metro, 14 usan bicicletas y 8 su vehículo particular. mientras que entre los segundos 12 prefieren el Metro, 7 las bicicletas y 11 el vehículo particular.
+¿Son iguales las distribuciones de las preferencias de transporte entre los dos grupos demográficos?
+
+Se selecciona la prueba de homogeneidad de Chi-cuadrado porque:
+Se comparan dos grupos independientes (urbanos vs. suburbanos)
+La variable de transporte es categórica con tres niveles
+Se quiere verificar si la distribución de proporciones es igual en ambos grupos
+Se verificará el supuesto de frecuencias esperadas ≥ 5
+
+```{r}
+# Crear la tabla de contingencia
+urbanos <- c(15, 14, 8)
+suburbanos <- c(12, 7, 11)
+tabla <- as.table(rbind(urbanos, suburbanos))
+dimnames(tabla) <- list(grupo = c("urbanos", "suburbanos"),
+                        transporte = c("Metro", "Bicicleta", "Vehículo"))
+
+# Definir condiciones y el nivel de significación
+minima_frec_esperada <- 5
+alfa <- 0.05
+
+# Obtener las frecuencias esperadas
+sumas_filas <- apply(tabla, 1, sum)
+sumas_columnas <- apply(tabla, 2, sum)
+suma_total <- sum(tabla)
+esperadas <- outer(sumas_filas, sumas_columnas, "*") / suma_total
+esperadas <- round(esperadas, 1)
+dimnames(esperadas) <- list(grupo = c("urbanos", "suburbanos"),
+                           transporte = c("Metro", "Bicicleta", "Vehículo"))
+
+# Realizar prueba chi-cuadrado de homogeneidad
+prueba <- chisq.test(tabla)
+
+# Mostrar la tabla
+cat("Tabla de contingencia:\n")
+cat("---\n")
+print(tabla)
+
+# Mostrar las frecuencias esperadas y si hay grupos que no cumplen con el mínimo
+cat("\nFrecuencias esperadas:\n")
+cat("---\n")
+print(esperadas)
+cat("Frecuencias esperadas bajo", minima_frec_esperada)
+cat(":", sum(esperadas < minima_frec_esperada), "\n")
+
+# Mostrar el resultado de la prueba
+cat("\nResultado de la prueba chi-cuadrado de homogeneidad:\n")
+cat("---\n")
+print(prueba)
+
+```
+
+La prueba de homogeneidad de Chi-cuadrado arrojó un valor p = 0.2959, que es superior al nivel de significancia establecido (α = 0.05), por lo que no se rechaza la hipótesis nula de homogeneidad. No existe evidencia estadísticamente significativa para afirmar que las distribuciones de preferencias de transporte difieren entre los grupos demográficos. Las proporciones muestrales revelan que entre los residentes urbanos existe una preferencia del 42.9% por el Metro, 40.0% por bicicletas y 22.9% por vehículo particular, mientras que entre los residentes suburbanos las preferencias son del 40.0% por Metro, 23.3% por bicicletas y 36.7% por vehículo particular. Esta similitud en los patrones de preferencia permite concluir, con un 95% de confianza, que las distribuciones de preferencias de transporte son iguales entre residentes urbanos y suburbanos, siendo las diferencias observadas atribuibles al azar muestral más que a diferencias reales entre los grupos.

@@ -1,0 +1,137 @@
+---
+title: "EP06"
+author: "Grupo 4"
+output: html_document
+date: "2025-09-26"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Enunciado
+
+Un equipo de investigadores del área de interacción humano-información está estudiando si el área temática y el nivel de dificultad del problema de información influyen en el tiempo (en segundos) que toma un usuario en formular una consulta de búsqueda para resolver dicho problema. Para ello, han reclutado a un grupo de participantes voluntarios, asignados aleatoriamente a distintos grupos. Cada participante debe resolver tres problemas de información con diferentes niveles de dificultad: baja, media y alta. A su vez, cada grupo debe resolver problemas relacionados a una temática diferente. Los datos recolectados contemplan las siguientes variables:
+
+```{r, warning=F, message=F}
+matrix(
+  data = c("id", "identificador único de cada participante.", "area", "Área temática de los problemas que el participante debe responder. Variable categórica con los niveles Arquitectura, Biología, Computación, Economía, Física, Leyes, Literatura, Matemáticas, Música, Pedagogía, Psicología, Química.", "dificultad", "Nivel de dificultad del problema resuelto. Variable categórica con los niveles Baja, Media y Alta.", "tiempo", "Tiempo, en segundos, que toma al participante formular la consulta."),
+  nrow = 4,
+  ncol = 2)
+```
+
+En este momento, los investigadores buscan determinar si existen diferencias en el tiempo que tardan los usuarios en formular consultas para problemas con diferente nivel de dificultad en el área de biología.
+
+##### Obteniendo los datos:
+
+```{r, warning=F, message=F}
+datos <- read.csv("EP06 Datos.csv")
+```
+
+Las hipótesis para el procedimiento serían:
+
+H0: En promedio, no hay diferencias en el tiempo que toma un usuario en formular una consulta de búsqueda para resolver el problema.
+$$ H_0: \mu_{\text{d_A-B}} = \mu_{\text{d_A-M}} = \mu_{\text{d_B-M}} = 0$$
+Ha: La media de las diferencias entre los tiempos que toma un usuario en formular una consulta de búsqueda para resolver un problema es diferente para al menos un par de niveles de dificultad de los problemas.
+$$ H_a: ∃X,Y ∈ [A, M, B],X\neq Y {\text{ }}|{\text{ }} \mu_{\text{d_X-Y}} \neq 0$$
+
+El valor de significación a utilizar será alpha = 0.05.
+
+##### Verificando las condiciones:
+
+A continuación, se verifican las condiciones de la prueba ANOVA
+
+1. Para verificar que la escala en la que se mide la variable dependiente posea una escala de intervalos iguales, consideremos la variable dependiente del tiempo. Dado que las diferencias numéricas entre las unidades de tiempo (segundos, en este caso) corresponden en todos los casos con las diferencias de tiempo en la realidad (por ejemplo, la diferencia entre 10s y 11s es la misma que entre 11s y 12s, y esta diferencia numérica de 1s corresponde con la diferencia de tiempo real), podemos asegurar la verificación de esta condición.
+
+2. Luego, se corrobora que las observaciones son independientes al interior de cada muestra, dado que los participantes son seleccionados aleatoriamente. Además, los datos del área de biología son:
+
+```{r, warning=F, message=F}
+library(dplyr)
+
+biologia <- datos %>% filter(area == "Biología")
+tamano_muestra <- length(biologia$id) / 3 # ya que cada persona formula una pregunta para 3 dificultades
+```
+
+Esta muestra es menor al 10% de la población total. Por último, el tiempo que un usuario tarda en formular consultas para los problemas no influye en el tiempo que tardan otros usuarios.
+
+3. Para la tercera condición, podemos comprobar la normalidad de los datos mediante un gráfico Q-Q para los tiempos de cada dificultad
+
+```{r, warning=F, message=F}
+library(dplyr)
+library(ggpubr)
+library(nortest)
+library(ez)
+
+g1 <- ggqqplot(biologia, x="tiempo", y="dificultad", color="dificultad", 0.7)
+g1 <- g1 + facet_wrap(~ dificultad)
+g1 <- g1 + rremove("x.ticks") + rremove("x.text")
+g1 <- g1 + rremove("y.ticks") + rremove("y.text")
+g1 <- g1 + rremove("axis.title")
+g1
+```
+En los gráficos se aprecia que la mayoría de los datos se mantienen dentro del área segura, sin embargo, se observan algunos valores atípicos, por lo que se aplicará un test de Shapiro-Wilk a los tiempos de cada dificultad para determinar de manera más segura si es razonable suponer que la población de origen sigue una distribución normal
+
+```{r, warning=F, message=F}
+datos_dif_alta <- biologia %>% filter(dificultad == "Alta")
+datos_dif_media <- biologia %>% filter(dificultad == "Media")
+datos_dif_baja <- biologia %>% filter(dificultad == "Baja")
+
+stest_alta <- shapiro.test(datos_dif_alta$tiempo)$p.value
+stest_media <- shapiro.test(datos_dif_media$tiempo)$p.value
+stest_baja <- shapiro.test(datos_dif_baja$tiempo)$p.value
+
+cat("Los p-valores resultantes de los test de Shapiro-Wilk para dificultades alta, media y baja respectivamente son:\n", stest_alta, stest_media, stest_baja , "\nEstos valores son mayores al nivel de significancia de esta prueba equivalente a α = 0.05, por lo que no hay evidencia para rechazar la hipótesis nula y se asume que los datos siguen una distribución normal")
+```
+
+4. Por último, para verificar la esfericidad de la matriz de varianzas-covarianzas, podemos utilizar la función ezANOVA, que incluye una prueba auxiliar: la prueba de esfericidad de Mauchly
+
+```{r, warning=F, message=F}
+ez_test <- ezANOVA(data = biologia, dv = tiempo, wid = id, within = dificultad)
+print(ez_test$`Mauchly's Test for Sphericity`)
+```
+
+El p-valor resultante de este test es mayor a 0.05, por lo que no hay evidencia suficiente para rechazar la hipótesis nula de esta prueba, indicando que esta última condición se cumple.
+
+##### Realizando el procedimiento:
+
+Antes de continuar, se define un nivel de significancia de α = 0.05, dado que el contexto del experimento no amerita una rigurosidad demasiado alta. 
+
+A continuación, para realizar el procedimiento ómnibus ANOVA, usaremos la función aov:
+
+```{r, warning=F, message=F}
+anova <- aov(tiempo ~ dificultad + Error(id/dificultad), data=biologia)
+print(summary(anova))
+```
+
+Como el p-valor del test ANOVA es menor a 0.05, se rechaza la hipótesis nula. Por ende, se concluye con un 95% de confianza que la media de las diferencias entre los tiempos es diferente para al menos un par de niveles de dificultad. Esto gracias a que la prueba ANOVA resultó ser significativa.
+
+##### Análisis post-hoc:
+
+Debido a que el test ANOVA concluyó que al menos un par de las medias de las diferencias entre los tiempos entre las dificultades es diferente a los demás, debemos verificar cuál par es diferente. Por ello, es necesario realizar una prueba post-hoc.
+
+El procedimiento post-hoc a realizar será la prueba HSD de Tukey, puesto que los 3 grupos poseen la misma cantidad de observaciones, se cumplen las condiciones para la prueba ANOVA y el enunciado no requiere la realización de comparaciones adicionales entre los pares. Esto se puede comprobar a continuación:
+
+```{r, warning=F, message=F}
+
+obs_dif_alta <- length(datos_dif_alta$id)
+obs_dif_media <- length(datos_dif_media$id)
+obs_dif_baja <- length(datos_dif_baja$id)
+
+cat("La cantidad de observaciones (para el área de biología) para las dificultades alta, media y baja, respectivamente, son de:\n", obs_dif_alta, obs_dif_media, obs_dif_baja)
+
+```
+
+Realizando la prueba HSD de Tukey, a través de emmeans:
+
+```{r, warning=F, message=F}
+library(emmeans)
+
+medias_estimadas <- emmeans(anova, "dificultad")
+hsd <- contrast(medias_estimadas, method="pairwise", level = 0.95, adjust="tukey")
+print(summary(hsd, infer=T))
+```
+Los resultados del análisis post-hoc (utilizando el valor de significación 0.05) revelan que existen diferencias significativas para todos los pares de dificultades, excepto el par de dificultades baja y media (puesto que su p-valor es de 0.1225 > 0.05). 
+
+##### Conclusión
+
+Para concluir, sí existen diferencias en el tiempo que tardan los usuarios en formular consultas para problemas con diferente nivel de dificultad en el área de biología, pero solo entre las dificultades alta - baja y alta - media. Por otra parte, estas diferencias no existen entre las dificultades baja - media, por lo que en promedio se deberían tardar tiempos extremadamente similares, siendo el tiempo promedio para las consultas de la dificultad alta significativamente mayor a ambas (dados los intervalos de confianza de los pares con dificultad alta y el par baja - media).

@@ -1,0 +1,144 @@
+---
+title: "Tarea 5"
+author: "Grupo 2"
+date: "2025-09-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+if(!require(dplyr)) install.packages("dplyr") #Para filtrar/leer excel
+if(!require(ggplot2)) install.packages("ggplot2") #Para graficar
+library(ez)
+library(ggpubr)
+library(car)
+```
+
+Equipo 2:
+¿Existen diferencias en el tiempo de resolución de cubos 3x3x3 entre participantes de Perú, Uruguay y Ecuador?
+
+```{r}
+#Cargar datos
+datos <- read.csv("EP05 Datos.csv", header = TRUE, sep = ";")
+
+#Los datos ya son largos
+paises <- datos %>% filter(tipo=="3x3x3" & (pais=="Perú" | pais=="Uruguay" | pais=="Ecuador"))
+
+#Limpiar datos
+paises$id <- NULL
+paises$tipo <- NULL
+paises$tiempo <- as.numeric(lapply((paises$tiempo), function(x) gsub(",", ".", x)))
+
+paises$X <- NULL
+
+# Convertir la columna 'Instancia' a factor
+paises <- paises |> mutate (Instancia = factor(1:n()))
+```
+
+En primer lugar, se definen las hipótesis a contrastar:
+
+H0: El tiempo de resolución promedio necesitado para resolver un cubo rubix 3x3x3 es el mismo para Perú, Uruguay y Ecuador
+$$ H_0: \mu_{\text{Perú}} = \mu_{\text{Uruguay}} = \mu_{\text{Ecuador}} $$
+
+Ha: El tiempo de resolución promedio necesitado para resolver un cubo rubix 3x3x3 es diferente para al menos un país entre Perú, Uruguay y Ecuador
+$$ H_a: ∃i,j ∈ [Perú, Uruguay, Ecuador],i\neq j {\text{ }}|{\text{ }} \mu_{\text{i}} \neq \mu_{\text{j}}$$
+
+A continuación se verifican las condiciones para la realización de la prueba ANOVA para muestras independientes:
+
+1. La variable dependiente, que corresponde al tiempo, se mide en escala de intervalos iguales, dado que la distancia entre dos valores cualesquiera es conocida y constante, por ejemplo la diferencia de un segundo entre los tiempos de Perú y Ecuador es la misma diferencia de un segundo entre Uruguay y Perú, al igual que con el resto de combinaciones de pares.
+
+2. Puesto que el enunciado menciona que se usó una muestra aleatoria de los datos de la competencia y que el tamaño de la muestra no supera el 10% de la población total, se concluye que las muestras son obtenidas de manera aleatoria e independiente desde la población de origen
+
+3. Para analizar la condición de normalidad se usa un gráfico Q-Q, en el cual se aprecia que la mayoría de los datos se mantienen dentro del área segura, por lo que se puede suponer razonablemente que la población de origen sigue una distribución normal, sin embargo, se obsevan muchos valores atípicos, por lo que se ajustará un nivel de significancia más exigente α = 0.01.
+
+```{r}
+
+# Gráfico Q-Q para verificar normalidad
+g1 <- ggqqplot(paises,
+              x = "tiempo",
+              y = "pais",
+              color = "pais",
+              alpha = 0.7,
+              palette = c("steelblue", "steelblue1", "steelblue4"))
+
+g1 <- g1 + facet_wrap(~ pais)
+g1 <- g1 + rremove("x.ticks") + rremove ("x.text")
+g1 <- g1 + rremove("y.ticks") + rremove("y.text")
+g1 <- g1 + rremove ("axis.title")
+
+print(g1)
+```
+
+4. Asumiendo que la población de origen corresponde a los participantes del torneo, todas las muestras provienen de la misma población, por lo tanto, se necesita realizar un análisis de varianzas.
+
+Realizando una prueba de Levene para verificar la homogeneidad de las varianzas tenemos:
+```{r}
+
+# Verificar homogeneidad de varianzas con prueba de Levene
+leveneTest(tiempo ~ pais, data = paises)
+
+```
+
+Debido a que el valor p de la prueba es 0.6635 > 0.01 esto indica que no existen diferencias significativas entre las varianzas de los tiempos de resolución de los tres países.
+
+Además realizando el analisis del grafico de caja podemos notar que estas mismas no estan tan estiradas por lo tanto las varianzas son aproximadamente homogeneas.
+
+
+```{r}
+# Gráfico de cajas para visualizar varianzas
+ggplot(paises, aes(x = pais, y = tiempo, fill = pais)) +
+  geom_boxplot(alpha = 0.7) +
+  labs(title = "Distribución de tiempos por país",
+       subtitle = "Verificación visual de homogeneidad de varianzas",
+       x = "País", y = "Tiempo (segundos)") +
+  theme_minimal()
+```
+
+Adicionalmente, se calculan las varianzas de cada grupo para verificar que no existan diferencias significativas entre ellas.
+
+```{r}
+# Calcular varianzas por grupo
+paises %>% 
+  group_by(pais) %>% 
+  summarise(varianza = var(tiempo),
+            desviacion_estandar = sd(tiempo))
+```
+
+Gracias a todos estos analisis podemos concluir que se cumplen con todas las condiciones para poder aplicar ANOVA.
+
+```{r}
+# Realizar prueba ANOVA
+prueba <- ezANOVA(data = paises, dv = tiempo,
+                  between = pais, wid = Instancia,
+                  return_aov = TRUE,
+                  detailed = TRUE)
+
+print(prueba)
+```
+
+
+Con un estadístico F =135.3074 y dado que el valor p (7.890341e-31) resulta ser menor al nivel de significancia definido (0.01), se rechaza la hipótesis nula, por lo tanto, se concluye con 99% de confianza que existe una diferencia entre dos países, pero no se sabe cuáles. Esto gracias a que la prueba ANOVA resultó ser significativa.
+
+A continuación, se procede a realizar una prueba post-hoc para determinar que países presentan una diferencia significativa.
+
+```{r}
+# Prueba post-hoc de Tukey
+post_hocTukey <- TukeyHSD(prueba$aov, "pais", ordered = TRUE, conf.level = 1 - 0.01)
+print(post_hocTukey)
+
+```
+Al revisar los resultados de la prueba post-hoc de Tukey se tiene:
+
+1) Perú vs Uruguay:
+p-adj = 0.265 > 0.01, por lo tanto, no hay diferencia significativa entre los tiempos de resolución de Perú y Uruguay.
+
+2) Ecuador vs Uruguay:
+p-adj ≈ 0.000 < 0.01, por lo tanto, hay diferencia altamente significativa entre los tiempos de resolución de Ecuador y Uruguay.
+Ecuador es más lento que Uruguay por aproximadamente 1.11 segundos en promedio
+
+3) Ecuador vs Perú:
+p-adj ≈ 0.000 < 0.01, por lo tanto, hay diferencia altamente significativa entre los tiempos de resolución de Ecuador y Perú.
+Ecuador es más lento que Perú por aproximadamente 0.99 segundos en promedio
+
+Finalmente, podemos concluir que existen diferencias significativas en el tiempo de resolución del cubo 3x3x3 entre los tres países. Específicamente, los participantes de Ecuador son significativamente más lentos que los de Perú y Uruguay, además, no hay diferencia significativa entre los tiempos de Perú y Uruguay. Todo esto se puede concluir con un 99% de confianza.
+
+

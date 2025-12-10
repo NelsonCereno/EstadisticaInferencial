@@ -1,0 +1,166 @@
+---
+title: "EP05 - Equipo 5"
+output: html_document
+date: "2025-09-27"
+---
+Contexto:
+
+En una emocionante competencia de cubos Rubik, participantes de Chile, Argentina, Colombia, Uruguay, Perú y Ecuador demostraron su destreza en resolver tres tipos de cubos: 2x2x2, 3x3x3 y Megaminx.
+
+Después del torneo, un grupo de investigadores de la Asociación Mundial del Cubo, interesado en los tiempos que hicieron las jugadoras y los jugadores en la competencia, decidieron estudiar si el país y el tipo de cubo usado en cada prueba tienen influencia en los segundos que se tardan en resolverlos. Para ello usaron una muestra aleatoria de los datos de la competencia, en la cual participaron más de 2.000 personas, con las siguientes variables:
+
+Variable	Descripción
+
+"id":	Identificador único de cada participante.
+
+"pais":	País que representa cada participante (Argentina, Chile, Colombia, Ecuador, Perú, Uruguay).
+
+"tipo":	Tipo de cubo usado en la prueba (2x2x2, 3x3x3, Megaminx).
+
+"tiempo":	Tiempo, en segundos, que toma al participante en resolver el cubo de la prueba.
+
+A raiz de esto nace la siguiente pregunta:
+
+¿Existen diferencias en el tiempo de resolución de cubos 3x3x3 entre participantes de Chile, Colombia y Uruguay?
+
+Para esto, se plantea la siguiente hipótesis:
+
+- Hipótesis nula (H0): No existen diferencias en el tiempo de resolución de cubos 3x3x3 entre participantes de Chile, Colombia y Uruguay.
+
+- Hipótesis alternativa (H1): Existen diferencias en el tiempo de resolución de cubos 3x3x3 entre participantes de Chile, Colombia y Uruguay.
+
+##
+
+Partimos con la importacion de librerías y carga de datos:
+```{r setup, include=FALSE}
+
+if(!require(dplyr)) 
+  install.packages("dplyr") 
+if(!require(ggplot2)) 
+  install.packages("ggplot2")
+if(!require(ez)) 
+  install.packages("ez") 
+if(!require(ggpubr)) 
+  install.packages("ggpubr") 
+if(!require(car)) 
+  install.packages("car") 
+
+# Carga de datos desde el excel
+datos <- read.csv2("EP05 Datos.csv")
+
+datos_filtrados <- datos %>%
+  filter(tipo == "3x3x3" & pais %in% c("Chile", "Colombia", "Uruguay"))
+
+
+
+```
+
+Se sabe que para realizar el procedimiento ANOVA, se deben cumplir 4 condiciones:
+
+1. La escala con que se mide la variable dependiente tiene las propiedades de una escala de intervalos
+iguales.
+2. Las k muestras son obtenidas de manera aleatoria e independiente desde la(s) población(es) de origen.
+3. Se puede suponer razonablemente que la(s) población(es) de origen sigue(n) una distribución normal.
+4. Si las muestras provienen de más de una población, estas poblaciones tienen la misma varianza.
+
+
+Para la primera condición tenemos que la variable dependiente "tiempo" (en segundos) corresponde a una escala de intervalos iguales porque es una unidad de medida constante, lo que quiere decir que 1 segundo representa la misma duración en cualquier punto de la escala, esto puede ser al inicio o al final de la misma. Además de que si un participante tarda 15 segundos y otro 20 segundos, la diferencia de 5 segundos es la misma que entre 30 y 35 segundos. Esto cumple con la propiedad de intervalos iguales.
+
+Para la segunda condición se tiene que las muestras son obtenidas de manera aleatoria e independiente desde la(s) población(es) de origen, ya que los datos fueron recolectados de una competencia oficial de cubos Rubik, donde los participantes fueron seleccionados de manera aleatoria y no hubo influencia entre ellos en sus tiempos de resolución.
+
+Para la tercera condición, se puede verificar utilizando un grafico de Q-Q plot y la prueba de Shapiro-Wilk para cada grupo de países.
+```{r}
+
+
+# Datos en formato largo
+datos_largos <- datos_filtrados |>
+  select(pais, tiempo) |>
+  mutate(Instancia = factor(1:n())) |>
+  mutate(pais = factor(pais))
+
+# Graficos para verificar normalidad
+g1 <- ggqqplot(datos_largos, x = "tiempo", facet.by = "pais", 
+               color = "pais", alpha = 0.7,
+               palette = c("steelblue", "steelblue1", "steelblue4"))
+g1 <- g1 + facet_wrap(~ pais)
+g1 <- g1 + rremove("x.ticks") + rremove("x.text")
+g1 <- g1 + rremove("y.ticks") + rremove("y.text")
+g1 <- g1 + rremove("axis.title")
+print(g1)
+
+# Prueba de Shapiro-Wilk para cada país
+shapiro_test <- datos_largos |>
+  group_by(pais) |>
+  summarise(
+    n = n(),
+    shapiro_p = shapiro.test(tiempo)$p.value
+  )
+
+cat("Prueba de Shapiro-Wilk por país:\n")
+print(shapiro_test)
+```
+
+Como se puede observar de los gráficos Q-Q, los puntos se alinean aproximadamente a lo largo de la línea diagonal para cada país, lo que sugiere que los datos siguen una distribución normal.
+
+Ahora, para la 4ta condición, podemos realizar y mostrar que la razón entre la maxima y la minima varianza muestral de los grupos no es superior a 1,5 con lo siguiente:
+
+```{r}
+
+varianzas <- datos_largos |>
+  group_by(pais) |>
+  summarise(
+    n = n(),
+    media = mean(tiempo),
+    varianza = var(tiempo)
+  )
+
+cat("Varianzas por grupo:\n")
+print(varianzas)
+
+# Razón entre máxima y mínima varianza
+var_max <- max(varianzas$varianza)
+var_min <- min(varianzas$varianza)
+razon_varianzas <- var_max / var_min
+
+cat("\nRazón entre varianzas (máxima/mínima):", round(razon_varianzas, 3), "\n")
+
+
+```
+
+Como podemos observar, la razón entre las varianzas es de 1.219, lo que es menor a 1.5, por lo que se cumple la condición de homocedasticidad de varianzas.
+
+Como se cumplieron todas las condiciones necesarias para realizar el ANOVA, procedemos a realizarlo con el siguiente código:
+
+```{r}
+cat("Procedimiento ANOVA usando aov\n")
+cat("---\n")
+prueba_aov <- aov(tiempo ~ pais, data = datos_largos)
+print(summary(prueba_aov))
+
+
+```
+
+
+```{r}
+cat("\nProcedimiento ANOVA usando ezANOVA\n")
+cat("---\n")
+prueba_ez <- ezANOVA(data = datos_largos, dv = tiempo, wid = Instancia, 
+                     between = pais, return_aov = TRUE, detailed = TRUE)
+print(prueba_ez)
+
+```
+Como se puede observar en base a ambas pruebas realizadas, ya sea con aov o con ezANOVA, el valor de p obtenido es mucho menor a 0.05, por lo que se rechaza la hipótesis nula y se concluye que existen diferencias significativas en el tiempo de resolución de cubos 3x3x3 entre participantes de Chile, Colombia y Uruguay.
+La prueba ANOVA detecta que hay diferencias globales, pero no especifica entre qué grupos existen esas diferencias. Para identificar cuáles grupos son significativamente diferentes entre sí, se puede realizar una prueba post-hoc, como la prueba de Tukey.
+
+```{r}
+
+cat("\nProcedimiento HSD de Tukey\n")
+cat("---\n")
+tukey_result <- TukeyHSD(prueba_aov, "pais", conf.level = 0.95)
+print(tukey_result)
+
+
+```
+Según estos datos, se puede observar que existen diferencias significativas entre todos los pares de países, ya que todos los valores p ajustados (p adj) son menores a 0.05. Esto indica que los tiempos de resolución de cubos 3x3x3 difieren significativamente entre Chile, Colombia y Uruguay. Entre Colombia y Chile, la diferencia promedio en los tiempos de resolución es de aproximadamente 0.365 segundos, con Colombia siendo más rápido. Entre Uruguay y Chile, la diferencia promedio es de aproximadamente 0.942 segundos, con Uruguay siendo más rápido. Finalmente, entre Uruguay y Colombia, la diferencia promedio es de aproximadamente 0.577 segundos, con Uruguay siendo más rápido.
+
+Entonces, se puede concluir que existen diferencias significativas en el tiempo de resolución de cubos 3x3x3 entre participantes de Chile, Colombia y Uruguay, y que Uruguay tiene los tiempos de resolución más rápidos en comparación con los otros dos países.

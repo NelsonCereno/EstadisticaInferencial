@@ -1,0 +1,239 @@
+---
+title: "Ep03 - grupo4"
+date: "2025-09-04"
+output: html_document
+---
+
+En una planta química hay dos máquinas que envasan detergentes industriales en bidones con un volumen de producto que sigue una distribución normal con desviación estándar de 1 litro. La ingeniera a cargo de la planta debe asegurar que los bidones se están llenando con una media de 10 litros. Pero ella tiene la sospecha de que hay desviaciones en esta media, lo que piensa confirmar usando una muestra aleatoria de 100 envases (50 de cada una de las máquinas). También cree que hay diferencia en el cumplimiento del volumen requerido entre la máquina más antigua y la más moderna, que han de andar por el 90% y 96% de los bidones, respectivamente.
+
+
+H0: los bidones se están llenando con una media de 10 litros. µ = 10 [s].  
+HA: los bidones no se están llenando con una media de 10 litros. µ ≠ 10 [s]
+
+
+```{r setup, include=FALSE}
+
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggpubr)
+library(DescTools)
+library(ez)
+library(emmeans)
+library(nlme)
+library(pwr)
+```
+
+• Si la ingeniera piensa rechazar la hipótesis nula cuando la muestra presente una media menor a 9,82 litros o mayor a 10,25 litros, ¿cuál es la probabilidad de que cometa un error de tipo I? Para responder, generen un gráfico de la distribución muestral de las medias hipotetizada en donde se marquen las zonas correspondientes a la probabilidad solicitada, para luego, basándose en este gráfico, calcular el área correspondiente. Tome como ejemplo los scripts presentados en la lectura sobre poder estadístico.
+
+La probabilidad de cometer un error de tipo I (también conocido como nivel de significancia (α)) es 0.4213998 , o 4.2% aprox.
+Se obtuvo calculando la suma de las áreas sombreadas en las colas achuradas de la distribución de la media muestral, en la cual la ingeniera decide que los límites de rechazo se delinean si se obtiene, como valor de la media, valores inferiores o superiores a 9.82 y 10.25 litros respectivamente.
+
+El gráfico muestra la distribución de la media muestral suponiendo, tal como dice el enunciado, que la media verdadera es 10 litros (H0: μ = 10). Las áreas sombreadas en los extremos representan la región de rechazo.
+
+Podemos entonces decir que la probabilidad de que la ingeniera rechace incorrectamente la hipótesis de que la media es 10 litros, cuando en realidad lo es (falso positivo), es baja con un 4.2% aprox.
+
+```{r}
+
+n <- 100
+alfa <- 0.4213998
+media_nula <- 10
+sigma <- 1
+SE <- sigma / sqrt(n)
+
+
+lim_inf <- 9.82
+lim_sup <- 10.25
+
+
+g_x_limites <- media_nula + c(-4, 4) * SE
+g <- ggplot() + xlim(g_x_limites)
+g <- g + labs(x = "Volumen litros", y = "Densidad")
+g <- g + labs(title = "Distribución muestral de las medias")
+g <- g + theme_pubr()
+
+# Distribución bajo H0
+dist_0 <- stat_function(fun = dnorm, geom = "area",
+                        args = list(mean = media_nula, sd = SE),
+                        colour = "steelblue", fill = "steelblue", alpha = 0.1)
+g1 <- g + dist_0
+g1 <- g1 + geom_vline(xintercept = media_nula, colour = "steelblue")
+
+# Regiones críticas dado los límites dados
+g2 <- g1 + stat_function(fun = dnorm, geom = "area",
+                         args = list(mean = media_nula, sd = SE),
+                         xlim = c(g_x_limites[1], lim_inf),
+                         fill = "steelblue", alpha = 0.6)
+g2 <- g2 + stat_function(fun = dnorm, geom = "area",
+                         args = list(mean = media_nula, sd = SE),
+                         xlim = c(lim_sup, g_x_limites[2]),
+                         fill = "steelblue", alpha = 0.6)
+print(g2)
+
+# alfa (prob de error tipo 1), beta (prob de error tipo 2) y poder
+alpha_inf <- pnorm(lim_inf, mean = media_nula, sd = SE)
+alpha_sup <- 1 - pnorm(lim_sup, mean = media_nula, sd = SE)
+alfa <- alpha_inf + alpha_sup
+
+cat("alfa =", alfa, "\n")
+
+```
+
+• Si el verdadero volumen medio de los bidones fuera de 10,3 litros, ¿cuál sería la probabilidad de que la ingeniera, que obviamente no conoce este dato, cometa un error de tipo II? Para responder, agregue al gráfico anterior la verdadera distribución muestral de las medias y marquen (con otro color) la zona correspondiente a la probabilidad solicitada, para luego, basándose en este gráfico, calcular el área correspondiente. También hay ejemplos de este procedimiento en la lectura sobre poder estadístico.
+
+Dado la suposición de que el volumen medio real de los bidones es de 10.3 litros, la probabilidad de que la ingeniera cometa un error de tipo II (beta (β)) es aprox. 0.309, o 30.9%.
+
+El gráfico superpone ambas distribuciones, de forma que se muestra la distribución que supone 10 litros como media, y la suposición de que en realidad fuera 10.3 la media verdadera. La zona achurada en rojo representa la probabilidad de error tipo II, que es el área de la distribución verdadera que cae dentro de la región de no rechazo de la distribución nula, de forma que esta zona sería representativa de no rechazar la hipótesis nula cuando es falsa.
+
+La probabilidad de que la ingeniera no detecte una diferencia de 0.3 litros en la media es 30.9%. Esto sugiere que la prueba podría no ser lo suficientemente poderosa (poder 0.69 aprox.) para detectar este cambio en el volumen dado los limites inferiores y superiores de rechazo de la hipotesis nula. 
+
+```{r}
+
+# Valor verdadero medio
+media_verdadera <- 10.3
+delta <- media_verdadera - media_nula
+
+# Distribución bajo la verdadera media
+dist_v <- stat_function(fun = dnorm, geom = "area",
+                        args = list(mean = media_verdadera, sd = SE),
+                        colour = "steelblue1", fill = "steelblue1", alpha = 0.1)
+g3 <- g2 + dist_v + geom_vline(xintercept = media_verdadera, colour = "steelblue1")
+print(g3)
+
+# Regiones críticas bajo distribución verdadera
+g4 <- g + dist_0 + dist_v
+g4 <- g4 + geom_vline(xintercept = media_nula, colour = "steelblue")
+g4 <- g4 + geom_vline(xintercept = media_verdadera, colour = "steelblue1")
+
+g4 <- g4 + stat_function(fun = dnorm, geom = "area",
+                         args = list(mean = media_verdadera, sd = SE),
+                         xlim = c(lim_inf, lim_sup),
+                         fill = "red", colour = "black", alpha = 0.3)
+
+print(g4)
+
+
+poder_inf <- pnorm(lim_sup, mean = media_verdadera, sd = SE)
+poder_sup <- pnorm(lim_inf, mean = media_verdadera, sd = SE)
+beta <- poder_inf - poder_sup
+poder <- 1 - beta
+
+cat("beta =", beta, "\n")
+cat("Poder =", poder, "\n")
+
+```
+
+• Como no se conoce el verdadero volumen medio, genere un gráfico del poder estadístico con las condiciones anteriores, pero suponiendo que el verdadero volumen medio podría variar de 9,4 a 10,4 litros. Hay un ejemplo de este tipo de gráfico en la lectura sobre poder estadístico.
+La relación entre el poder estadístico y el verdadero volumen medio (probando valores entre 9.4 y 10.4 litros) de los bidones se representa en el siguiente gráfico.
+El poder (1 - β) lo definimos como la probabilidad de rechazar correctamente una hipótesis nula falsa. El poder es bajo cuando la media verdadera está cerca de la media que supone la hipótesis nula (10 litros) y aumenta a medida que la diferencia entre ambas se hace más grande (en el caso bilateral). Para la versión unilateral, solo mejora cuando la diferencia es suficientemente grande hacia uno de los lados. Notamos que es más fácil detectar una diferencia grande que una pequeña.
+
+A efectos prácticos, en este gráfico se están usando límites superiores e inferiores construidos de manera simétrica a partir del supuesto de un alfa = 0.4213998 como obtenido en la pregunta 1.
+
+Si en cambio se graficara usando los límites asimétricos definidos en la primera pregunta, la prueba que propone la ingeniera tendría un poder bajo para detectar desviaciones pequeñas, como por ejemplo la de 0.3 litros, dado que la media nula es 10 litros. Dada las restricciones de la cola superior e inferior asimetricas [ 9.82, 10.25 ], el poder de la prueba bilateral sería de aproximadamente 69% (1 - 0.309), ya obtenido en el cálculo del error tipo II. La prueba se vuelve mucho más potente si la diferencia fuera mayor, por ejemplo 1 litro.
+
+En el gráfico mostrado aquí, como se usan límites simétricos asociados a alfa = 0.05, ocurre similarmente a lo ya dicho: el poder es bajo para diferencias menores a 0.3 litros (por ejemplo, 0.1 litros) y mejora definidamente para diferencias más grandes (por ejemplo, 0.5 litros). En este caso, para una diferencia de 0.3 litros (10.3 vs 10), el poder de la prueba bilateral es cercano a 80%, lo que veremos confirmado en las siguientes preguntas.
+
+```{r}
+
+
+# Rango de posibles medias verdaderas
+medias_verdaderas <- seq(9.4, 10.4, 0.01)
+
+# Deltas y tamaños del efecto normalizados
+deltas <- medias_verdaderas - media_nula
+deltas_normalizados <- deltas / sigma
+
+# Función para calcular poder bilateral
+f_pzb <- function(x) {
+  pwr.norm.test(d = x, n = n, sig.level = alfa,
+                alternative = "two.sided")[["power"]]
+}
+
+# Función para calcular poder unilateral (cola derecha)
+f_pzu <- function(x) {
+  pwr.norm.test(d = x, n = n, sig.level = alfa,
+                alternative = "greater")[["power"]]
+}
+
+# Calcular poderes
+poder_bilat <- sapply(deltas_normalizados, f_pzb)
+poder_unilat <- sapply(deltas_normalizados, f_pzu)
+
+# datos
+datos_anchos <- data.frame(medias_verdaderas, poder_bilat, poder_unilat)
+datos_largos <- datos_anchos |>
+  pivot_longer(-medias_verdaderas, names_to = "Tipo", values_to = "Poder")
+
+datos_largos[["Tipo"]] <- factor(datos_largos[["Tipo"]],
+                                 labels = c("Bilateral", "Unilateral"))
+
+# Graficar
+g <- ggline(datos_largos,
+            x = "medias_verdaderas", y = "Poder",
+            plot_type = "l", numeric.x.axis = TRUE,
+            title = "Relación entre poder y media verdadera",
+            xlab = "Media verdadera [litros]",
+            color = "Tipo",
+            palette = c("steelblue", "steelblue1"))
+g <- ggpar(g, legend = c(.85, .35))
+print(g)
+
+```
+
+• Considerando un volumen medio de 10 litros, ¿cuántos bidones deberían revisarse para conseguir un poder estadístico de 0,8 y un nivel de significación de 0,05?
+
+Para conseguir un poder estadístico de 0.80 con un nivel de significancia de 0.05 para detectar una diferencia de 0.3 litros (d = 0.3), se necesitarían 89.15 bidones. Lo redondeamos a 90 bidones, por lo que la muestra actual de 100 bidones (50 de cada máquina) es suficiente para alcanzar el poder estadístico de 0.80 para detectar una diferencia de 0.3 litros.
+Se asume que ya no estamos utilizando las colas asimetricas dadas por la primera pregunta  [9.82, 10.25 ], sino que a efectos prácticos se asume utilizar los limites simétricos dados poor alfa=0.05. Se hace lo mismo para la pregunta 5.
+
+```{r}
+delta <- 0.3  
+d <- delta / sigma  # d de Cohen
+alfa <- 0.05
+poder <- 0.80
+
+# Tamaño de muestra
+n_tamanio <- pwr.t.test(d = d, sig.level = alfa, power = poder,
+                            type = "one.sample", alternative = "two.sided")
+
+print(n_tamanio)
+cat("n =", n_tamanio$n, "\n\n")
+
+```
+
+• ¿Alcanzaría esta muestra para detectar la diferencia que la ingeniera sospecha que existe entre las dos máquinas de la planta con al menos las mismas probabilidades de cometer errores?
+
+Se cree que hay diferencia en el cumplimiento del volumen requerido entre la máquina más antigua y la más moderna, 90% y 96% de los bidones, respectivamente, según el enunciado. Por lo que revisaremos el poder de detección de la prueba estadística para estas diferencias dado una muestra de 50 bidones por máquina y un nivel de significación de 0.05. Se obtiene que el poder estadístico para la prueba es de apenas 0.226, por lo que es muy poco probable (22.6% prob.) que la prueba detecte la diferencia del 6% en el cumplimiento de volumen requerido entre las máquinas.
+
+Para un poder estadístico, por ejemplo de 0.80 para detectar cambios en el análisis de proporciones, se requerirían mínimo 271 bidones por máquina, tal que el total sería aprox. 542 bidones para poder confiar en hacer la prueba de proporciones y obtener resultados con suficiente potencia para afirmar que existe una diferencia.
+
+```{r}
+
+p1 <- 0.90
+p2 <- 0.96
+
+# Efecto en h
+h <- ES.h(p1, p2)
+cat("ES.h(p1,p2) =", h, "\n\n")
+
+# a) poder con n1 = n2 = 50
+n_maquina <- 50
+factores_prop <- pwr.2p.test(h = h, n = n_maquina,
+                                   sig.level = 0.05, alternative = "two.sided")
+print(factores_prop)
+cat("Poder (con n1=n2=50):", factores_prop$power,
+    " => Beta (error tipo II) =", 1 - factores_prop$power, "\n\n")
+
+# b) tamaño por grupo necesario para alcanzar power = 0.8 (two-sided)
+factores_prop_req <- pwr.2p.test(h = h, n = NULL, sig.level = 0.05,
+                                 power = 0.80, alternative = "two.sided")
+print(factores_prop_req)
+cat("n requerido por maquina (devuelto por pwr.2p.test) =", factores_prop_req$n, "\n")
+cat("Total aproximado requerido por las 2 maquinas =", 2 * factores_prop_req$n, "\n\n")
+
+```
+
+Se utilizó ChatGPT para correcciones de ortografía y limpieza de código espurio.
+
+```
+```
