@@ -1,0 +1,75 @@
+---
+title: "Tarea 1"
+author: "Benjamin Moya"
+date: "2025-03-20"
+output: html_document
+---
+
+### Pregunta 9
+El nivel de ingreso de las mujeres de la RM ¿varía con el estado civil?
+
+### Hipótesis
+- **Hipótesis nula (H0):** El nivel de ingreso de las mujeres de la RM no varía con el estado civil.
+- **Hipótesis alternativa (Ha):** El nivel de ingreso de las mujeres de la RM varía con el estado civil.
+
+### Metodología
+A continuación, se describe el procedimiento seguido para analizar la relación entre el nivel de ingreso y el estado civil de las mujeres en la Región Metropolitana.
+
+```{r, warning=FALSE, message=FALSE}
+library(knitr)
+library(dplyr)
+library(ggplot2)
+
+# Cargamos los datos
+datos <- read.csv2("EP01_Datos_Casen_2017.csv")
+
+# Filtramos con la funcion filter los datos por sexo(Nominal) y region(Nominal)
+mujeres <- datos %>% 
+        filter(sexo == "Mujer" & region == "Región Metropolitana de Santiago")
+
+
+# Recuperamos cada valor de estado civil y lo guardamos en una lista
+estado_civil <- unique(mujeres$ecivil)
+
+# Creamos un vector vacio para guardar los valores de la media del ingreso de cada estado civil
+medias <- c()
+
+# Iteramos sobre cada estado civil
+for (i in 1:length(estado_civil)){
+        # Filtramos los datos por estado civil
+        datos_estado_civil <- mujeres %>% filter(ecivil == estado_civil[i])
+        # Calculamos la media del ingreso
+        media <- mean(datos_estado_civil$ytot)
+        # Guardamos la media en el vector
+        medias <- c(medias, media)
+}
+
+# Creamos un data frame con los valores de estado civil y las medias
+medias_estado_civil <- data.frame(estado_civil, medias)
+
+#mostramos las categorias de los estados civiles
+
+print(medias_estado_civil)
+
+# Graficamos los datos
+ggplot(medias_estado_civil, aes(x = estado_civil, y = medias)) +
+        geom_bar(stat = "identity") +
+        labs(title = "Ingreso promedio de mujeres de la Región Metropolitana de Santiago por estado civil",
+             x = "Estado civil",
+             y = "Ingreso promedio")
+
+# Se realiza una prueba ANOVA que permite comparar las medias de más de dos grupos simultáneamente, se basa en una distribucion F
+anova <- aov(ytot ~ ecivil, data = mujeres)
+
+# Mostramos los resultados
+summary(anova)
+
+# Graficamos el residuo con el grafico Q-Q
+qqnorm(residuals(anova))
+```
+
+### Conclusiones
+
+Como se observa los valores de los residuos de la prueba, siguen una distribucion normal, lo que nos indica que los resultados de esta son confiables ademas de cumplir uno de los requisitos para utilizarla.
+
+Dado que los valores p obtenidos en la prueba ANOVA para cada estado civil son menores a 0.05, se rechaza la hipótesis nula. Esto indica que existe una relación significativa entre el estado civil y el nivel de ingresos de las mujeres en la Región Metropolitana de Santiago. Por lo tanto, podemos concluir que el nivel de ingreso de las mujeres varía según su estado civil.

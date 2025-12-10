@@ -1,0 +1,141 @@
+---
+title: "coment"
+output: html_document
+date: "2025-05-30"
+---
+
+Tarea: tome 100 observaciones del conjunto de datos Prestige del paquete carData y construya un rlm con 2 o 3 predictores para la variable de salida education. Luego, evalua la confiabilidad y calidad predictiva usando validacion cruzada dejando uno fuera.
+
+Exportando los datos:
+```{r}
+library(carData)
+set.seed(123)
+data= Prestige
+indices= sample(1:nrow(data), 100)
+data_sampled = data[indices, ]
+```
+
+Realizaremos la seleccion de predictores utilizando Regresion jerarquica, y luego ajustaremos un modelo con la funcion lm.
+```{r}
+#modelo nulo
+modelo_nulo <- lm(education ~ 1, data = data_sampled)
+#modelo 1
+modelo1=update(modelo_nulo, . ~ . + income)
+#modelo 2
+modelo2=update(modelo1, . ~ . + prestige)
+#modelo 3
+modelo3=update(modelo2, . ~ . + census)
+#modelo 4
+modelo4=update(modelo3,.~.+women)
+#comparaciones
+anova(modelo_nulo, modelo1, modelo2, modelo3, modelo4)
+
+#metricas AIC Y BIC
+library(MASS)
+AIC(modelo_nulo, modelo1, modelo2, modelo3, modelo4)
+BIC(modelo_nulo, modelo1, modelo2, modelo3, modelo4)
+```
+Como podemos observar el modelo 3 es el que mejor se ajusta a los datos dado que posee un RSS igual a 105.45, no se considero el modelo 4 ya que la disminucion de este valor es insignificante.  y tambien porque como se nos indica se valora la simplicidad del modelo a no ser que reduzca significativamente el RSS.
+La eleccion tambien se justifica con el analisis de las metricas AIC Y BIC donde vemos que los valores son menores para el modelo 3, lo que indica un mejor ajuste en comparacion con los modelos anteriores.
+ahora veremos la confiabilidad de dicho modelo la cual debe cumplir las siguientes condiciones:
+
+1) La variable de salida debe ser continua y cuantitativa.
+2) Los predictores deben ser cuatitativos o dicotomicos.
+3) Los predictores deben tener algun grado de variabilidad, es decir no son constantes
+4) cada predictor debe estar relacionado linealmente con la respuesta
+5) la distribucion de los residuos debe ser cercana a la normal centrada en cero
+6) La variabilidad de los residuos debe ser constante(homostaceidad)
+7) Los residuos deben ser independientes entre si
+8) No debe existir multicolinealidad entre los predictores
+9) Los valores atipicos no deben influir en el modelo de manera significativa.
+
+Ahora veremos si se cumplen dichas condiciones, en caso de que no se cumpla alguna o varias no quiere decir que el modelo es inutil sino que puede no ser confiable.
+
+1: se cumple ya que es una variable numerica
+2: se cumple ya que los predictores son cuantitativos
+3: se cunple ya que los predictores tienen variabilidad no nula
+```{r}
+var(data_sampled$income)
+var(data_sampled$prestige)
+var(data_sampled$census)
+```
+ahora verificaremos la 4,5 6 de una manera grafica y con diversos test
+```{r}
+library(car)
+library(ggplot2)
+# Verificando la linealidad de los predictores
+residualPlots(modelo3)
+marginalModelPlots(modelo3)
+#verificando la normalidad de los residuos
+qqPlot(modelo3)
+#homostaceidad
+ncvTest(modelo3)
+
+```
+Analizando el grafico de residuos para verificar linealidad, nos damos cuenta que casi todas cumplen con la condicion de linealidad.
+Pero observamos que la variable income tiene cierta curvatura pero se falla al rechazar la hipotesis nula en la prueba de curvatura por lo que sigue el concepto de linealidad.
+Se cumple la quinta condicion ya que el modelo sigue un patron normal centrado en cero, y la sexta condicion tambien se cumple ya que la variabilidad de los residuos es constante. tampoco se viola la condicion de homostaceidad ya que el ncvTest nos indica que no hay heterocedasticidad ya que se fallo al rechazar la hipotesis nula.
+
+Ahora verificaremos las condiciones restantes
+
+7:
+```{r}
+library(lmtest)
+# Verificando la independencia de los residuos
+dwtest(modelo3)
+```
+como podemos observar el test de Durbin-Watson nos indica que no hay autocorrelacion entre los residuos, por lo que se cumple la septima condicion.
+8:
+```{r}
+library(car)
+# Verificando la multicolinealidad
+vif(modelo3)
+```
+como podemos observar hay una multicolinealidad moderada entre los predictores, pero no es lo suficientemente alta como para afectar significativamente el modelo, por lo que se cumple parcialmente la octava condicion.
+
+9:
+```{r}
+influencePlot(modelo3)
+```
+Como podemos observar solo el punto atipico general managers es altamente influyente en el modelo, pero no afecta significativamente el ajuste del modelo, por lo que parcialmente no se cumple esta condicion.
+
+hemos visto que el modelo cumple parcialmente con todas las condiciones de confiabilidad. Ahora realizaremos una validacion cruzada dejando uno fuera para evaluar la calidad predictiva del modelo.
+
+```{r}
+library(dplyr)
+library(caret)
+#generar indices aleatorios con otra semilla
+set.seed(456)
+indices_cv <- sample(1:nrow(data_sampled), nrow(data_sampled), replace = FALSE)
+# Definir la función de entrenamiento con un predictor menos
+fmla3= formula("education~census+prestige+income")
+# Definir la función de entrenamiento
+entrenamiento=train(fmla3, data = data_sampled, method = "lm", trControl = trainControl(method = "LOOCV"))
+
+modelo=entrenamiento[["finalModel"]]
+
+#ver el error estimado
+entrenamiento$results
+
+# El modelo final ajustado con todos los datos (contenido en el objeto train)
+modelo_final_de_train <- entrenamiento$finalModel
+print(summary(modelo_final_de_train)) # Para ver sus coeficientes, etc.
+
+# dv standart de education
+dv_standart <- sd(data_sampled$education)
+dv_standart
+```
+
+Conclusiones:
+
+Como podemos ver el modelo es significativo para representar los datos, hemos obtenido un error de validacion cruzada de 1.10584 lo cual comparado con la dv estandar de la variable de salida education que es 2.753339, nos indica que el modelo tiene un buen ajuste y una buena capacidad predictiva, ya que el error es menor a la desviacion estandar de la variable de salida. por otro lado vemos que los valor R-Squared y R-adjust son mayo a 0.85, lo que indica que el modelo explica una gran parte de la variabilidad de la variable de salida education, lo que refuerza la idea de que el modelo es confiable y tiene una buena capacidad predictiva.pero se podria realizar un ajuste al modelo ya que se nos indica que la variable income no es significativa, por lo que se podria eliminar del modelo y ver si mejora el ajuste, pero esto no es necesario ya que el modelo ya tiene un buen ajuste y una buena capacidad predictiva.
+
+
+
+
+
+
+
+
+
+

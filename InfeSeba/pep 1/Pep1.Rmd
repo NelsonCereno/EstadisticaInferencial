@@ -1,0 +1,109 @@
+---
+title: "Pep 1"
+author: "sebastian de la fuente & Benjamin Moya"
+date: "2025-05-12"
+output: html_document
+---
+
+Verificar que la consola Sega Dreamcast alcanzo la misma popularidad en Japon y en el resto del mundo EXCLUYENDO A Norte America y Europa.
+
+Respuesta:
+
+Nos piden analizar la muestra dada y verificar si la consola Sega Dreamcast tuvo la misma popularidad en Japon y en el resto del mundo, excluyendo a Norte America y Europa. Para esto, Verificaremos condiciones de normalidad y analizaremos los datos para ver que tipo de prueba se utilizara.
+
+```{r warning=FALSE, message=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggpubr)
+library(ggplot2)
+data=read.csv2("EI-2025-1-PE1-Datos.csv")
+data_filtered=data %>% select(Consola, Japon, Otro) 
+data_filtered=data_filtered %>% filter(Consola=="Sega Dreamcast")
+# Convertimos los datos a formato largo segun Region
+data_long <- data_filtered %>%
+  pivot_longer(cols = -Consola, names_to = "Region", values_to = "Ventas") %>%
+  mutate(Region = factor(Region, levels = c("Japon", "Otro")))
+
+#verificacion de normalidad para determinar que prueba estadistica utilizar
+shapiroJapon=shapiro.test(data_filtered$Japon)
+shapiroOtro=shapiro.test(data_filtered$Otro)
+
+#al ser normales y quiero comparar 2 medias de una muestra pareada debo utilizar t student
+
+alpha=0.05
+t=t.test(data_filtered$Japon, data_filtered$Otro, paired = TRUE, alternative = "two.sided", conf.level = 1-alpha)
+```
+
+Primero Lo mas importante es definir la Hipotesis nula que se buscara contrastar con el analisis y el nivel de significancia que consideraremos.
+
+Hipotesis:
+
+H0: La media de las ventas en Japon es igual a la media de las ventas en el resto del mundo (excluyendo Norte America y Europa).
+
+H1: La media de las ventas en Japon es diferente a la media de las ventas en el resto del mundo (excluyendo Norte America y Europa).
+
+Nivel de significancia:
+alpha=0.05
+
+Una vez propuesta la hipotesis y determinado el nivel de significancia. se determinara si los datos siguen una distribucion normal y que tipo de muestra es.
+
+```{r}
+head(data_filtered)
+```
+
+Como se puede ver nos indican que se necesita trabajar con una muestra pareada con dos niveles por instancia, es pareada ya que se evalua el mismo sujeto en dos regiones distintas.
+
+una vez identificada el tipo de muestra analizaremos la normalidad para trabajar los datos correctamente y realizar una prueba acorde a la distribucion de los datos.
+
+```{r}
+# Verificamos normalidad 
+tonos_azules = c ("steelblue","steelblue1")
+g <- ggqqplot (data_long, x = "Ventas", y = "Region",color = "Region" , palette = tonos_azules)
+g <- g + facet_wrap(~ Region )
+g <- g + rremove ("x.ticks") + rremove ("x.text")
+g <- g + rremove ("y.ticks") + rremove ("y.text")
+g <- g + rremove ("axis.title")
+print ( g )
+
+shapiroJapon
+shapiroOtro
+```
+
+Como podemos evindenciar los datos siguen una distribucion normal, por lo que podemos aplicar la prueba t de student para muestras pareadas.
+
+Para ello buscaremos verificar si se cumplen las condiciones para realizar la prueba t de student, las cuales son:
+
+1. Los pares de observaciones son independientes: Si ya que evalua a un sujeto sin necesitar el resultado de otro
+
+2. Los valores provienen de una muestra normal: Si evidenciado en el procedimiento anteriormente realizado
+
+3. Los valores son continuos: si ya que las ventas son valores continuos
+
+Una vez verificadas las condiciones procedemos a realizar la aplicacion de la prueba:
+
+```{r}
+t
+```
+
+Analizando el resultado de la prueba realizada obtenemos que se obtuvo un valor p=2.2e-16, lo cual es menor al nivel de significancia 0.05, por lo que se rechaza la hipotesis nula en favor de la hipotesis alternativa, es decir, la media de las ventas en Japon es diferente a la media de las ventas en el resto del mundo (excluyendo Norte America y Europa).
+
+
+
+1.
+```{r}
+library(ez)
+data = read.csv2("EI-2025-1-PE1-Datos.csv")
+data_filtered = data %>% select(Id, Consola, Otro)
+
+# Convertir los datos a formato largo
+data_long <- data_filtered %>%
+  gather(key = "Tipo", value = "Valor", Otro)
+
+# Verificar y eliminar filas con datos faltantes
+data_long <- na.omit(data_long)
+
+
+
+
+```
+

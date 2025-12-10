@@ -1,0 +1,115 @@
+---
+title: "Pep2"
+author: "sebastian de la fuente y benjamin moya"
+date: "2025-06-30"
+output: html_document
+---
+
+
+# Pregunta 2
+
+el gobierno regional de coquimbo desea identificar factores criticos que influyen en el acceso a la educacion superior de los habitantes de la region. En consecuencia, le ha solicitado contruir un modelo de regresion adecuado para predecir si las personas fueron o no aceptadas por una institucion de educacion superior, que use entre 2 y 5 predictores, asegurando que el modelo obtenido sea confiable. Determine si la calidad predictiva del modelo satisface los requerimientos del gobierno regional evaluandolo con validacion cruzada de 10 plieges. usando la semilla 5317
+
+### Solucion
+
+dado que se nos pide realizar una prediccion de una variable binaria, se debe utilizar un modelo de regresion logistica. Para ello, se debe seleccionar entre 2 y 5 variables predictoras que puedan influir en la variable de salida "Matriculado". A continuacion, se realizara el analisis de los datos y la construccion del modelo.
+
+Limpieza de datos y seleccion de predictores
+
+```{r}
+library(car)
+library(ggplot2)
+library(caret)
+library(dplyr)
+library(ggpubr)
+library(psych)
+library(leaps)
+library(pROC)
+
+data=read.csv2("EI-2025-1-PE2-Datos.csv")
+set.seed(5317)
+data_coquimbo= data %>% filter(Region == "Coquimbo")
+#eliminar la variable Xy la region no es de utilidad
+data_coquimbo <- data_coquimbo %>% select(!all_of(c("X","Region")))
+combinations <- regsubsets(Matriculado ~ ., data = data_coquimbo, nbest = 1, nvmax = 5, method = "exhaustive")
+summary(combinations)
+plot(combinations)
+```
+
+Para la creacion del modelo se utilizaran como predictores las variables Ranking, Matematicas y Lenguaje. ya que como se observa en el grafico arrojado por la funcion regsubsets, son las variables con mas significancias a corde la variable de salida a evaluar.
+
+para la creacion del modelo se usara la regresion hacia adelante donde se buscara obtener el modelo con mas significancia y que mas reduzca la RSS.
+
+```{r}
+modelonulo=glm(Matriculado ~ 1, data = data_coquimbo, family = binomial)
+modelo1=update(modelonulo, as.formula(paste(". ~ . +", "Ranking")))
+modelo2=update(modelo1, as.formula(paste(". ~ . +", "Matematicas")))
+modelo3=update(modelo2, as.formula(paste(". ~ . +", "Lenguaje")))
+anova(modelonulo, modelo1, modelo2, modelo3)
+AIC(modelonulo, modelo1, modelo2, modelo3)
+BIC(modelonulo, modelo1, modelo2, modelo3)
+
+summary(modelo3)
+```
+
+Como se observa en el analisis de modelos realizado, el modelo 3 es el que mejor ajusta los datos y el que mas minimiza la RSS, por lo que se seleccionara este modelo como el modelo final y a evaluar su confiabilidad y calidad predictiva.
+
+Confiabilidad del modelo:
+
+Recordar que se deben cumplir ciertas condiciones para verificar la confiabilidad del modelo las cuales son:
+
+1- no debe existir multicolinealidad
+
+2- independencia de los residuos
+
+3- no influencia de los valores atipicos
+
+
+```{r}
+#multicolinealidad
+vif(modelo3)
+
+#independencia de los residuos
+durbinWatsonTest(modelo3)
+
+#valores atipicos
+influencePlot(modelo3)
+```
+
+Podemos comprobar gracias al resultado del test vif que no existe ninguna multicolinealidad entre las variables asignadas como predictores. Tambien se observa que no existe sobreinfluencia de los valores atipicos y finalmente gracias al test Durbin Watson se verifica que los residuos son independientes ya que el resultado de este no fue significativo. Por lo tanto al cumplir todas las condiciones anteriores podemos concluir que el modelo es confiable y se puede utilizar para predecir la variable de salida solicitada.
+
+
+evaluacion de calidad predictiva del modelo utilizando validacion cruzada de 10 pliegues
+```{r}
+data_coquimbo$Matriculado <- factor(data_coquimbo$Matriculado, labels = c("No", "Si"))
+
+control_entrenamiento <- trainControl(method = "cv", 
+                                      number = 10,
+                                      # Es buena práctica guardar las predicciones para análisis posteriores
+                                      savePredictions = TRUE,
+                                      # Necesario para métricas como Sensibilidad, Especificidad, etc.
+                                      classProbs = TRUE, 
+                                      summaryFunction = twoClassSummary)
+
+
+modelo_final_cv <- train(Matriculado ~ Ranking + Matematicas + Lenguaje, 
+                         data = data_coquimbo, 
+                         method = "glm",
+                         family = "binomial",
+                         trControl = control_entrenamiento,
+                         metric = "ROC")
+
+print(modelo_final_cv)
+matriz=confusionMatrix(modelo_final_cv)
+print(matriz)
+# Curva ROC
+roc_obj <- roc(data_coquimbo$Matriculado, 
+                as.numeric(predict(modelo_final_cv, type = "prob")[, "Si"]))
+plot(roc_obj)
+
+```
+
+
+Como se puede observar podemos entender el Clasificador para estimar la variable de salida solicitada es bastante adecuado ya que se observa un valor AUC del 0.8335 lo cual es un indicativo de que el modelo clasifica correctamente la variable de salida en un 83.35% de las veces y la forma de la curva ROC indica una buena relacion entre la especificidad y sensibilidad lo que es crucial para este tipo de modelos. Si bien el modelo no es perfecto se puede concluir que al ser confiable es adecuado para predecir si una persona sera aceptada o no en una institucion de educacion superior.
+
+

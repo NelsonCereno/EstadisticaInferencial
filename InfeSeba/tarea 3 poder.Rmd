@@ -1,0 +1,222 @@
+---
+title: "poder estadístico en pruebas con medias"
+date: "2025-04-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Contexto
+
+En una planta química hay dos máquinas que envasan detergentes industriales en bidones con un volumen de producto que sigue una distribución normal con desviación estándar de 1 litro. La ingeniera a cargo de la planta debe asegurar que los bidones se están llenando con una media de 10 litros. Pero ella tiene la sospecha de que hay desviaciones en esta media, lo que piensa confirmar usando una muestra aleatoria de 100 envases (50 de cada una de las máquinas). También cree que hay diferencia en el cumplimiento del volumen requerido entre la máquina más antigua y la más moderna, que han de andar por el 90% y 96% de los bidones, respectivamente.
+
+## Pregunta 1
+
+Si la ingeniera está segura de que el verdadero volumen medio no puede ser inferior a 10 litros y piensa rechazar la hipótesis nula cuando la muestra presente una media mayor a 10,15 litros, ¿cuál es la probabilidad de que cometa un error de tipo I?
+
+#### Respuesta:
+
+Para saber la probabilidad de cometer un error tipo I, se identifican los datos que nos da el enunciado, $\sigma = 1$, $\mu = 10$ y n = 100 son los datos que necesitaremos para graficar la distribución normal muestral con sus respectivos limites, siendo en eje x el volumen [L] y el eje y la Densidad, calculando la probabilidad del area bajo la curva de la region critica superior para identificar la zona donde se cometeria un error de tipo I, es decir se rechaza la hipotesis nula favoreciendo la hipotesis alternativa siendo que la hipotesis nula es la verdadera, la grafica presente se muestra a continuación:
+
+```{r}
+library(ggplot2)
+library(ggpubr)
+
+sigma <- 1
+alfa <- 0.05
+media_nula <- 10
+n <- 100
+
+#Error estandar
+SE <- sigma / sqrt(n)
+
+#graficar distribucion muestral de las medias
+g_x_limites <- media_nula + c(-6.9,5) * SE
+
+g <- ggplot() + xlim(g_x_limites)
+g <- g + labs(x = "Volumen [L]", y = "Densidad", title = "Distribución muestral de las medias") + theme_pubr()
+
+#Agregamos la hipotesis nula
+dist_0 <- stat_function(fun = dnorm, geom = "area",
+                        args = list(mean = media_nula, sd = SE), colour = "steelblue", fill = "steelblue", alpha = 0.1)
+
+g1 <- g + dist_0
+g1 <- g1 + geom_vline(xintercept = media_nula, colour = "steelblue")
+
+#calcular las regiones criticas de la hipotesis nula
+z_crit_sup <- 10.15
+
+g2 <- g1 +
+  stat_function(fun = dnorm, geom = "area",
+                args = list(mean = media_nula, sd = SE),
+                xlim = c(z_crit_sup, g_x_limites[2]),  # Región derecha
+                fill = "red", alpha = 0.6)
+
+g2 <- g2 + annotate("text", x = (z_crit_sup + 0.04), y = dnorm(z_crit_sup + 0.065, media_nula, SE), 
+                     label = "alpha", vjust = "top", parse = TRUE,
+                     size = 8, fontface = "bold")
+
+print(g2)
+```
+
+Para calcular el error de tipo I, se usara la función pnorm() ingresando la region critica superior calculada anteriormente para la grafica, la media nula dada y el error estandar calculado anteriormente
+
+```{r}
+p_error_t1 <- pnorm(z_crit_sup, mean = media_nula,sd = SE, lower.tail = FALSE)
+cat("alpha = ", p_error_t1, "\n")
+conf_level = 1 - p_error_t1
+```
+
+Se obtuvo como resultado queel valor de nuestro nivel de significancia es de un 0.0668072 equivalente a un 6.68072%. por lo que tambien podemos deducir que nuestro nivel de confianza es de un 93.31928%.
+
+## Pregunta 2
+
+Si el verdadero volumen medio de los bidones fuera de 10,25 litros, ¿cuál sería la probabilidad de que la ingeniera, que obviamente no conoce este dato, cometa un error de tipo II? Para responder, agregue al gráfico anterior la verdadera distribución muestral de las medias y marquen (con otro color) la zona correspondiente a la probabilidad solicitada, para luego, basándose en este gráfico, calcular el área correspondiente. También hay ejemplos de este procedimiento en la lectura sobre poder estadístico
+
+#### Respuesta:
+
+Teniendo en consideracion los valores anteriores los cuales repectan a nuestro valor nulo y nuestro valor superior derecho. Procederemos a realizar un analisis grafico y luego estimar el poder, conscuentemente el valor de $\beta$.
+
+```{r}
+significancia = p_error_t1
+
+#agregamos los valores verdaderos 
+media_verdadera = 10.25
+delta = media_verdadera - media_nula
+dist_v= stat_function(fun = dnorm, geom = "area", args = list(mean = media_verdadera, sd = SE), 
+                     colour = "steelblue1", fill="steelblue1", alpha=0.2)
+g3 = g2 + dist_v + geom_vline(xintercept = media_verdadera, colour="steelblue1")
+
+#agregar anotacion del tamaño de efecto
+x_ann = c(media_verdadera,media_nula)
+y_ann = c(dnorm(media_verdadera, mean = media_verdadera, sd = SE), 
+          dnorm(media_nula, mean = media_nula, sd = SE))
+y_ann = y_ann + significancia
+g3 = g3 + annotate("segment", x = x_ann[1], y = y_ann[1], xend = x_ann[2], yend = y_ann[2], arrow = arrow(angle = 10, length = unit(0.03, "npc"), ends = "both", type = "open"))
+g3 = g3 + annotate("text", x = sum(x_ann)/2, y = y_ann[1] + 0.2, label = "delta", vjust = "top", parse = TRUE)
+
+g4 = g3 + geom_vline(xintercept = media_nula, color = "steelblue")
+
+
+g4 = g4 + stat_function(fun = dnorm,
+                    geom = "area",
+                    args = list(mean = media_verdadera, sd = SE),
+                    xlim = c(g_x_limites[1], z_crit_sup),
+                    fill = "#FFAA00", alpha = 0.55)
+
+#g4 <- g4 + annotate ( "text" , x = 10.15 , y = 1.5 , label = " poder [sup] " ,vjust = "top" , parse = TRUE )
+
+g4 <- g4 + annotate ("text", x = (sum(x_ann) / 2) - 0.027, y = 0.75, 
+                     label = "beta", vjust = "top", parse = TRUE, 
+                     size = 13, fontface = "bold")
+
+#g4 <- g4 + annotate ( "segment" , x = 10.15 , y = 1.15 , xend = 10.18 , yend = 0.4 , arrow = arrow ( angle = 10 , length = unit (0.03 , "npc" ) , ends = "last" , type = "open" ) )
+
+print(g4)
+
+```
+
+En la grafica se puede observar la region critica superior, la cual es la zona donde se comete el error tipo I, y la zona de beta, que es donde se comete el error tipo II. La zona de beta corresponde a la probabilidad de no rechazar la hipotesis nula cuando esta es falsa, es decir, no detectar una diferencia entre las medias cuando en realidad existe.
+
+```{r}
+power = pnorm(z_crit_sup, mean = media_verdadera, sd = SE, lower.tail = FALSE)
+beta= 1 - power
+cat("poder = ",power,"\n")
+cat("beta = ", beta)
+```
+
+El análisis muestra un poder estadístico del 84%, lo cual generalmente se considera bueno. Esto significa que si la verdadera media de llenado fuera 10.25 litros, tendríamos una alta probabilidad (84%) de detectar esta desviación y rechazar correctamente la hipótesis nula de que la media es 10 litros. La razón principal de este alto poder es que la media verdadera (10.25) no solo es diferente de la media nula (10), sino que además se encuentra más allá del valor crítico (10.15) que define nuestra zona de rechazo. Como resultado, la mayor parte de la distribución muestral bajo la hipótesis alternativa cae dentro de la zona de rechazo. Complementariamente, la probabilidad de cometer un Error de Tipo II (β), es decir, no detectar la diferencia cuando existe, es del 16% (1 - 0.84).
+
+## Pregunta 3
+
+Como no se conoce el verdadero volumen medio, genere un gráfico del poder estadístico con las condiciones anteriores, pero suponiendo que el verdadero volumen medio podría variar de 10 a 10,6 litros. Hay un ejemplo de este tipo de gráfico en la lectura sobre poder estadístico.
+
+#### Respuesta:
+
+En el eje horizontal del gráfico se ubican los tamaños del efecto obtenidos para cada valor posible del volumen medio real; es decir, la diferencia entre este y el valor medio nulo ($\mu_0 = 10$ en este caso) normalizado. Aunque como $\sigma = 1$, esto último no cambia su valor. Luego se utiliza la función `pwr.norm.test` y se obtiene el poder estadístico asociado, graficándose en el eje vertical, considerando las condiciones anteriores: $n = `r n`$, $\alpha = `r round(significancia, 3)`$.
+
+```{r}
+library(pwr)
+library(tidyr)
+
+## Definición tamaños del efecto.
+# Volumen varia entre 10 y 10,6 litros
+medias_verdaderas <- seq(10, 10.6, 0.01)
+
+# normalizar medias para obtener deltas
+# sigma = 1 en este caso, no afecta en nada, pero para mantener el procedimiento
+deltas <- medias_verdaderas - media_nula
+deltas_normalizados <- deltas/sigma
+
+## Función para obtener el poder estadístico de la prueba a considerar
+# (alfa = 0.06, H_A: mu > 10.15)
+f_poder <- function(x) pwr.norm.test(x, n = n, sig.level = significancia, alternative = "greater")[["power"]]
+poderes <- sapply(deltas_normalizados, f_poder)
+
+# Graficar curva
+datos_anchos <- data.frame(deltas, poderes)
+datos_largos <- datos_anchos |>
+  pivot_longer(-deltas, values_to = "Poder")
+
+g_p3 <- ggline(datos_largos, x = "deltas", y = "Poder", color = "steelblue", plot_type = "l", numeric.x.axis = TRUE)
+g_p3 <- g_p3 + labs(x = "Delta (μ - μ0)")
+g_p3 <- g_p3 + labs(title = "Poder Estadístico respecto a Tamaños del Efecto")
+print(g_p3)
+
+```
+
+Del gráfico obtenido son destacables las siguientes observaciones:
+
+-   El valor del poder en el ejercicio 2, donde $\delta = 0.25$, es consistente con el valor de $\beta$ obtenido en el mismo.
+-   Con un valor $\delta$ aproximadamente igual a 0.1, (en otras palabras, cuando el volumen medio real es alrededor de 10,1 litros), el poder estadístico de la prueba se acerca al 30%; dicho de otra forma, la ingeniera no tendría muchas posibilidades de detectar esta diferencia. No así con un valor $\delta$ cercano o superior a 0.2, donde el poder asociado aumenta a más del 60%, lo que implica una alta probabilidad de que la ingeniera rechace correctamente su hipótesis nula.
+
+## Pregunta 4
+
+Considerando un volumen medio de 10 litros, ¿cuántos bidones deberían revisarse para conseguir un poder estadístico de 0,8 y un nivel de significación de 0,05?
+
+#### Respuesta:
+
+Sabemos que tenemos una media nula, $\mu_{0}$, de 10 litros, ademas de haberse brindado un poder 0.8, y un nivel de significancia, $\alpha$, de 0.05, gracias al contexto tambien poseemos una desviacion estandar, $\sigma$, de 1. Para este caso utilizaremos la función power.norm.test(), debido a que poseemos la desviación estandar por lo que se puede realizar una prueba Z en este caso:
+
+```{r}
+library(pwr)
+
+alfa <- 0.05
+poder <- 0.8
+media <- 10.15
+media_nula <- 10
+sigma <- 1
+
+delta <- media - media_nula
+d <- delta / sigma
+
+result <- pwr.norm.test(d = d, sig.level = alfa, power = poder, alternative = "two.sided")
+print(result)
+```
+
+Gracias a la funcion power.t.test() se sabe que en el tamaño de la muestra ,es decir n, deberia ser de 349 bidones, ya que los bidones de no se pueden fraccionar lo cual se redondea a 349, a revisarse para conseguir un poder estadistico de 0.8, nivel de significancia 0.05 y considerando una media de 10 litros.
+
+## Pregunta 5
+
+¿Alcanzaría esta muestra para detectar la diferencia que la ingeniera sospecha que existe entre las dos máquinas de la planta con al menos las mismas probabilidades de cometer errores?
+
+#### Respuesta:
+
+```{r}
+library(pwr)
+
+alfa <- 0.05
+poder <- 0.8
+p1 <- 0.9
+p2 <- 0.96
+
+h <- ES.h(p2, p1)
+
+result <- pwr.2p.test(h = h, sig.level = alfa, power = poder, alternative = "two.sided")
+print(result)
+
+```
+
+Gracias a la funcion pwr.2p.test() se sabe que en el tamaño de la muestra ,es decir n, deberia ser de 271 bidones cada muestra por maquina, por lo tanto la muestra actual no es suficiente ya que se posee 50 bidones cada maquina.

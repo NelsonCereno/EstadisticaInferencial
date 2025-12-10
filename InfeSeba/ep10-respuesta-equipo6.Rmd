@@ -1,0 +1,221 @@
+---
+title: "EP10-respuesta-equipo-6"
+output: html_document
+date: "2025-06-09"
+---
+### El equipo crea la variable dicotómica EN (estado nutricional) de acuerdo al valor de IMC de cada persona
+
+Se realizó la carga de datos y se calculó el IMC y la variable dicotómica EN (estado nutricional) de acuerdo al valor de IMC de cada persona. Se consideró sobrepeso cuando el IMC es mayor o igual a 23.2, y no sobrepeso cuando es menor a este valor. La variable EN toma el valor 1 para sobrepeso y 0 para no sobrepeso. Finalmente, se añadió la variable EN al conjunto de datos original.
+```{r setup, include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(car)
+library(pROC)
+```
+
+```{r}
+data = read.csv2("EP09 Datos.csv",sep = ";")
+peso = data$Weight
+altura = data$Height
+imc = peso/(altura/100)^2
+data = cbind(data,imc)
+en = imc
+for (i in imc) {
+  if(i>=23.2){
+    en[en == i] = 1
+  } else {
+    en[en == i] = 0
+  }
+}
+#1: sobrepeso 0: no sobrepeso
+data = cbind(data,en)
+data$en = factor(data$en)
+```
+### Asegurando reproducibilidad, seleccionar una muestra de 150 mujeres (si su n° de equipo es un número par) o 150 hombres (si su n° de equipo es impar), asegurando que la mitad tenga estado nutricional “sobrepeso” y la otra mitad “no sobrepeso” en cada caso. Dividir esta muestra en dos conjuntos: los datos de 100 personas (50 con EN “sobrepeso”) para utilizar en la construcción de los modelos y 50 personas (25 con EN “sobrepeso”) para poder evaluarlos.
+
+Se seleccionó una semilla (3) para asegurar la reproducibilidad del trabajo y se filtró el conjunto de datos para obtener solo mujeres, dado que el número de equipo es par. Luego, se dividió la muestra en dos grupos: uno con sobrepeso y otro sin sobrepeso, asegurando que ambos grupos tuvieran 75 observaciones cada uno. Posteriormente, se combinó la muestra y se dividió en dos conjuntos: uno para entrenamiento (100 observaciones) y otro para predicción (50 observaciones).
+
+```{r}
+set.seed(3)
+mujeres = data %>% filter(Gender == 0)
+
+mujeres_sobrepeso = mujeres %>% filter(en == 1) %>% sample_n(75)
+
+mujeres_no_sobrepeso = mujeres %>% filter(en == 0) %>% sample_n(75)
+
+datosfiltrados = rbind(mujeres_sobrepeso,mujeres_no_sobrepeso)
+datos_ent = rbind(mujeres_sobrepeso[1:50, ], mujeres_no_sobrepeso[1:50, ])
+datos_pred = rbind(mujeres_sobrepeso[51:75, ], mujeres_no_sobrepeso[51:75, ])
+datos_ent = datos_ent[sample(nrow(datos_ent)), ]
+datos_pred = datos_pred[sample(nrow(datos_pred)), ]
+
+```
+### Recordar las ocho posibles variables predictoras seleccionadas de forma aleatoria en el ejercicio anterior.
+
+Las ocho posibles variables predictoras seleccionadas de forma aleatoria en el ejercicio anterior son: Knees.diameter, Bitrochanteric.diameter, Forearm.Girth, Biiliac.diameter, Bicep.Girth, Chest.depth, Navel.Girth, Shoulder.Girth".
+
+### Seleccionar, de las otras variables, una que el equipo considere que podría ser útil para predecir la clase EN, justificando bien esta selección (idealmente con literatura).
+
+Para predecir el estado nutricional EN (sobrepeso o no sobrepeso), seleccionamos la circunferencia de la cintura (Waist Girth) como variable para predecir, considerando su relevancia como indicador de acumulación de grasa abdominal, un factor clave en la clasificación del estado nutricional. Estudios, como el documento “Circunferencia de cintura: una medición importante y útil del riesgo cardiometabólico” de Manuel Ignacio Moreno González (Departamento de Nutrición, Diabetes y Metabolismo, Facultad de Medicina Pontificia Universidad Católica de Chile), destacan que la circunferencia de la cintura se correlaciona fuertemente con el índice de masa corporal y el riesgo de sobrepeso, siendo un predictor efectivo para identificar condiciones como el sobrepeso u obesidad. Esta elección se justifica por su capacidad para reflejar desequilibrios metabólicos asociados al estado nutricional, lo que la hace un predictor valioso para nuestro modelo.
+
+### Usando el entorno R, construir un modelo de regresión logística con el predictor seleccionado en el paso anterior y utilizando de la muestra obtenida.
+
+A continuacion se construye un modelo de regresión logística con el predictor seleccionado en el paso anterior (Waist.Girth) y haciendo uso de la muestra obntenida (datos_ent).
+
+```{r}
+modelo = glm(en ~ Waist.Girth, data = datos_ent, family = binomial(link = "logit"))
+summary(modelo)
+```
+Al observar los resultados entregados por el modelo construido vemos que el predictor Waist.Girth es significativo (p-valor = 1.6e-06 < 0.05), lo que indica que hay una relación entre la circunferencia de la cintura y el estado nutricional. El coeficiente estimado para Waist.Girth es positivo, lo que sugiere que a medida que aumenta la circunferencia de la cintura, también aumenta la probabilidad de tener sobrepeso. El modelo tiene un valor AIC = 59.33 lo cual es revalitamente pequeño, lo que indica que el modelo es relativamente bueno en términos de ajuste.Dado lo anterior, podemos concluir que el predictor Waist.Girth es un buen predictor del estado nutricional EN (sobrepeso o no sobrepeso) y un buen modelo de regresión logística.
+
+### Usando estas herramientas para la exploración de modelos del entorno R, buscar entre dos y cinco predictores de entre las variables seleccionadas al azar, recordadas en el punto 2, para agregar al modelo obtenido en el paso anterior
+
+Luego, entre las 8 variables obtenidas de manera aleatoria en el trabajo anterior, se seleccionaron 3 variables que podrían ser relevantes para predecir el estado nutricional EN (sobrepeso o no sobrepeso). Estas variables son, Navel.Girth, Bitrochanteric.diameter y Bicep.Girth. A continuación, se construye un modelo de regresión logística utilizando estas 4 variables como predictores.
+
+Luego, se usó regresión escalonada para seleccionar cuales de las 4 variables serían las más relevantes para el modelo final. El test utilizado usa el método de LRT (pruebas de razón de verosimilitud) como default. 
+
+```{r}
+modelocompleto = glm(en ~ Waist.Girth + Navel.Girth + Bitrochanteric.diameter + Bicep.Girth, data=datos_ent, family = binomial(link = "logit"))
+
+modelonulo = glm(en~1, data = datos_ent, family = binomial(link = "logit"))
+
+modelofinal = step(modelonulo,
+                  scope = list(upper = modelocompleto),
+                  direction = "both", 
+                  trace = FALSE)
+
+cat("\nModelo obtenido:\n")
+print(modelofinal[["coefficients"]])
+summary(modelofinal) 
+
+```
+Al observar el resultado entregado por la regresión escalonada, tenemos que el modelo final entregado, después de 7 iteraciones, encontró que las variables de Waist.Girth y Bicep.Girth son las más significativas con un p-valor de 0.0014 y 0.0045 respectivamente. Este modelo tiene un AIC de 49.47, lo que indica que es un modelo relativamente bueno en términos de ajuste y mejor que el modelo inicial generado. Comparando la desviación residual del modelo final (43.471) y el modelo inicial (55.33), nos dice que al incluir el predictor Bicep.Girth al modelo se logra un mejor ajuste. Por lo tanto, se valida la elección del procedimiento escalonado y se suguiere que ambos predictores son relevantes para predecir el estado nutricional EN (sobrepeso o no sobrepeso).
+
+### Evaluar la confiabilidad de los modelos (i.e. que tengan un buen nivel de ajuste y son generalizables) y “arreglarlos” en caso de que tengan algún problema.
+
+A continuación vamos a verificar la confiabilidad del modelo Rlog obtenido desarrollando los siguientes pasos:
+
+1.  Debe existir una relación lineal entre los predictores y la respuesta transformada. Como podemos ver en el gráfico de residuos generado por la función residualPlots(), no se observan patrones claros que suguieran una no linealidad, los datos se encuentran dispersos alrededor de 0, lo que sugiere que la relación es lineal. Además, al observar el valor entregado esta función, los valores de p-valor de Waist.Girth y Bicep.Girth son muy altos cercanos a 1, lo cual suguiere que no hay evidencia de no linealidad. Los gráficos generados por la funcion crPlots(), podemos ver que el supuesto de linealidad se cumple relativamente bien, dado que ambas lineas casi se encuentran superpuestas. Por lo tanto, se cumple la condición.
+
+```{r}
+
+residualPlots(modelofinal, fitted = FALSE)
+crPlots(modelofinal)
+
+```
+
+2.  Los residuos deben ser independientes entre sí. Dado que el estadístico de Durbin-Watson es 1.936021, un valor muy cercano a 2, indica que no hay autocorrelación significativa, indicando que los residuos son independientes entre sí. Además, el valor de autocorrelación 0.02699758 es muy cercano a 0, lo que refuerza la idea de que no hay autocorrelación significativa. Por lo tanto, se cumple la condición.
+
+```{r}
+# se realizó un ajuste a los datos, se utilizó datos_ent = datos_ent[sample(nrow(datos_ent)), ], dado que al realizar el test dwt() el parámetro obtenido en p_value era 0, lo cual indicaba que los residuos no eran independientes entre sí, por lo que se realizó un ajuste a los datos para que el test dwt() pudiera ser realizado correctamente.
+dwt(modelofinal)
+```
+
+3.  No debe existir multicolinealidad entre los predictores. El resultado de la función vif() entrega el valor 1.004562 para Waist.Girth y 1.004562 para Bicep.Girth, lo cual indica que se encuentran en 1 \< VIF \< 5: donde existe multicolinealidad moderada que podría afectar ligeramente los resultados, pero generalmente no es motivo de gran preocupacion, sin embargo como estos valores son practicamente igual a 1, podemos decir que no existe multicolinealidad entre los predictores. Por lo tanto, se cumple.
+
+```{r}
+vif(modelofinal)
+```
+
+4.  Observaciones suficientes para los predictores.
+
+El modelo se construyó utilizando el conjunto de datos "datos_ent", que contiene 100 observaciones, con 50 observaciones por cada nivel de la variable categórica "en" (0 y 1). Dado que el modelo tiene 2 predictores (Waist.Girth y Bicep.Girth), se cumple la condición de tener entre 10 a 15 observaciones por predictor numérico y por nivel de variable categórica. Esto implica tener un mínimo de 20 observaciones, por lo tanto, se cumple la condición.
+
+5.  Separación perfecta, que ocurre cuando no hay superposición entre las clases (es decir, como vimos, cuando los predictores separan ambas clases completamente).
+
+Para corroborar esta condición se realizó el siguiente gráfico de dispersión, donde se observa que los puntos de Waist.Girth y Bicep.Girth están separados por el nivel de "en". Esto indica que no hay superposición entre las clases, ya que se observa que no hay dos grupos por separados, sino que se encuentran mezclados entre si, lo que sugiere que no hay separación perfecta. Además, se debe considerar que al momento de generar el modelo final mediante la regresión escalonada, se realizaron 7 iteraciones donde no apareció ningún tipo de warning de "perfect separation", lo cual apoya el supuesto. Por lo tanto, se cumple.
+
+```{r}
+ggplot(datos_ent, aes(x = Waist.Girth, y = Bicep.Girth, color = factor(en))) +
+  geom_point() +
+  labs(title = "Dispersión de Predictores por Nivel de 'en'",
+       x = "Waist.Girth", y = "Bicep.Girth", color = "en") +
+  theme_minimal()
+```
+
+6.  Las estimaciones de los coeficientes del modelo no están dominadas por casos influyentes.
+
+Como se puede observar, ninguna variable atípica influye significativamente en el modelo, hay que considerar que al menos 3 datos atípicos se encuentran por sobre el umbral (4/100 = 0.04), siendo el máximo valor de 0.217, sin embargo, estos valores de Cook's distance están por debajo de 1, lo que indica que no hay casos influyentes que afecten las estimaciones de los coeficientes del modelo. Por lo tanto, se cumple la condición.
+
+```{r}
+influencePlot(modelofinal) 
+```
+
+En resumen, se cumplen las 6 condiciones necesarias para validar el modelo de regresión logística obtenido.
+
+### Usando código estándar, evaluar el poder predictivo de los modelos con los datos de las 50 personas que no se incluyeron en su construcción en términos de sensibilidad y especificidad.
+
+```{r}
+#se predicen los datos de entrenamiento con el modelo realizacod
+prediccion = predict(modelofinal, newdata = datos_pred, type = "response")
+#el metodo de clasificacion
+prediccion_clasificacion = ifelse(prediccion > 0.5, 1, 0)
+#se crea la tabla de confusion
+confusion_matrix = table(Predicted = prediccion_clasificacion, Actual = datos_pred$en)
+print(confusion_matrix)
+# Calcular sensibilidad y especificidad para realizar el analisis a la curva roc
+sensibilidad = confusion_matrix["0", "0"] / (confusion_matrix["0", "0"] + confusion_matrix["0", "1"])
+sensibilidad
+especificidad = confusion_matrix["1", "1"] / (confusion_matrix["1", "0"] + confusion_matrix["1", "1"])
+especificidad
+ROC_pru <- roc(datos_pred$en, prediccion, levels = c(0, 1), direction = "<")
+
+# Crear gráfico ROC con ggplot2
+g_ROC_pru <- ggroc(ROC_pru, color = "steelblue", size = 1.2)
+g_ROC_pru=g_ROC_pru + geom_abline (intercept = 1, slope = 1, colour = "steelblue", linetype = "dashed")
+text_ent=sprintf("AUC %.2f",ROC_pru$auc)
+g_ROC_pru = g_ROC_pru+annotate("text", x = 0.3, y = 0.3, label = text_ent, size = 5, color = "black")
+g_ROC_pru <- g_ROC_pru +
+  geom_abline(intercept = 0, slope = 1, colour = "gray", linetype = "dashed") +
+  xlab("1 - Especificidad") + ylab("Sensibilidad") +
+  annotate("text", x = 0.6, y = 0.2, 
+           label = sprintf("AUC = %.2f", auc(ROC_pru)), 
+           size = 5, color = "black")
+
+# Mostrar gráfico
+print(g_ROC_pru)
+```
+
+Conclusiones:
+
+En base al análisis realizado, se puede concluir que el clasificador de regresión logística múltiple, utilizando los predictores Waist.Girth y Bicep.Girth, resulta significativo para predecir el estado nutricional (EN), categorizado como sobrepeso o no sobrepeso.
+
+El modelo final muestra un buen ajuste y un desempeño sólido en la clasificación de las observaciones del conjunto de prueba. Esto se evidencia en los valores obtenidos de sensibilidad y especificidad, que reflejan una alta capacidad del modelo para distinguir correctamente entre ambas clases.
+
+Para evaluar gráficamente la calidad del clasificador, se construyó la curva ROC, la cual mostró una marcada separación respecto a la diagonal, indicando un buen poder discriminativo. Asimismo, se calculó el AUC (Área Bajo la Curva), obteniéndose un valor de 0.94, lo que confirma que el modelo tiene un buen desempeño predictivo.
+
+En resumen, el modelo de regresión logística múltiple con los predictores seleccionados demuestra ser un clasificador eficaz y confiable para predecir el estado nutricional (sobrepeso o no sobrepeso) en la muestra analizada.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

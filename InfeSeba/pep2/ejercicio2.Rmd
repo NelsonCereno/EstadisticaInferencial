@@ -1,0 +1,17 @@
+---
+title: "ejercicio2"
+author: "sebastian de la fuente"
+date: "2025-06-30"
+output: html_document
+---
+
+```{r}
+library(car)
+library(dplyr)
+library(ggpubr)
+library(psych)
+library(ggplot2)
+library(caret)
+data=read.csv2("EP09 Datos.csv")
+```
+

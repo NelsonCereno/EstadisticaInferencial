@@ -1,0 +1,159 @@
+---
+title: "Tarea 2"
+author: "Sebastian de la fuente, benjamin moya, amalia veas"
+date: "2025-03-25"
+output: html_document
+---
+```{r setup, echo=FALSE, warning=FALSE,message=FALSE}
+library(knitr)
+library(dplyr)
+library(ggplot2)
+```
+
+## Preguntas
+
+1-El Comité Olímpico cree que el mejor tiempo medio de los atletas de raza blanca después de ingresar al programa de entrenamiento es de 13,6 segundos. ¿Soportan los datos esta afirmación?
+
+2-¿Sugieren los datos que la mejor marca de los atletas de raza oriental se reduce en promedio menos de 4,7 segundos tras el entrenamiento?
+
+3-¿Es posible afirmar que, en promedio, los atletas de raza negra superaban a los de raza blanca por más de 2 segundos antes del entrenamiento?
+
+4- ¿Será cierto que hay más atletas de raza blanca que redujeron sus mejores marcas en al menos 2,9 segundos que atletas de raza negra que lo hicieron en al menos 1,9 segundos?
+
+## Respuestas
+
+### 1.        
+
+```{r,echo=FALSE}
+#Cargamos los datos 
+datos <- read.csv2("EP02Datos.csv")
+
+#Prgeunta 1: El Comité Olímpico cree que el mejor tiempo medio de los atletas de raza blanca después de ingresar al programa de entrenamiento es de 13,6 segundos. ¿Soportan los datos esta afirmación?
+
+#Definimos las hipotesis a contrastar
+#H0: La media de los datos de la raza blanca es igual a 13.6
+#HA: La media de los datos de la raza blanca es distinta de 13.6
+
+# Filtramos con la funcion filter los datos por raza y los tiempos posteriores al entrenamiento 
+raza_blanca <- datos %>% 
+        filter(Raza == "Blanca")
+
+tiempos_post <- raza_blanca$Posterior
+
+# Ya que un atleta no interfiere en los tiempos de otro y la muestra es mayor a 30, podemos asumir que los datos son independientes y que la distribucion de los tiempos es cercana a la normal, pero realizamos un grafico q-q para asegurarnos de esto.
+qqnorm(tiempos_post)
+qqline(tiempos_post, col = "red")
+
+#Comprobada las condiciones realizamos el test t de una muestra con intervalo de confianza y tipo de hipotesis predeterminada del test
+t.test(tiempos_post, mu = 13.6)
+```
+
+Definimos las hipotesis a contrastar
+H0: La media de los datos de la raza blanca es igual a 13.6
+HA: La media de los datos de la raza blanca es distinta de 13.6
+
+Ya que un atleta no interfiere en los tiempos de otro y la muestra es mayor a 30, podemos asumir que los datos son independientes y que la distribucion de los tiempos es cercana a la normal, pero realizamos un grafico q-q para asegurarnos de esto.
+
+Comprobada las condiciones realizamos el test t de una muestra con intervalo de confianza y tipo de hipotesis predeterminada del test
+
+
+```{r,echo=FALSE}
+data = read.csv2("EP02Datos.csv")
+orientales= data %>% filter(Raza=="Oriental")
+diferencia= orientales$Previo - orientales$Posterior
+cantidad= length(diferencia)
+normalidad = shapiro.test(diferencia)
+alfa = 0.05
+t.test(diferencia,mu=4.7, alternative = "less",conf.level = (1-alfa))
+tcritico= qt(1-alfa,df=cantidad-1)
+errorstandart= sd(diferencia)/sqrt(cantidad)
+intervalo= c(mean(diferencia)-tcritico*errorstandart,mean(diferencia)+tcritico*errorstandart)
+```
+
+### 2.
+
+Se solicita el analisis para los atletas de raza oriental y verificar la veracidad de la afirmacion de que la mejor marca de los atletas de raza oriental se reduce en promedio menos de 4,7 segundos. una vez dicho esto se plantea la siguiente situacion:
+
+H0 : La reducción promedio de la mejor marca de los atletas de raza oriental es igual a 4,7 segundos
+H0: μ = 4.7 segundos 
+
+H1: los atletas de raza oriental reducen su mejor marca en promedio menos de 4,7 segundos
+H1: μ < 4.7 segundos
+
+luego se cree conveniente realizar un test de hipotesis para la media de una poblacion, en este caso se utilizara la prueba t de una cola, con un nivel de significancia de 0.05, para determinar si la afirmacion es verdadera o falsa.
+
+se verifican las condiciones para realizar dicho test las cuales son:
+
+1. la poblacion debe ser normal
+2. muestras independientes entre si
+
+para probar la normalidad de los datos, se realizo el shapiro test, lo que arrojo los siguientes resultados:
+
+W = 0.97305 y p-value=0.6839. por lo que deja en evidencia que los datos siguen una distribucion normal.
+
+Posteriormente se procede a realizar el test de hipotesis antes mencionado, el cual arroja un p-valor de 0.9998 lo cual es mayor a 0.05, por lo que se concluye que no hay evidencia suficiente en los datos para sugerir que la reducción promedio de la mejor marca de los atletas de raza oriental es menor a 4,7 segundos, de esta manera rechazandose la hipotesis alternativa planteada en favor de la hipotesis nula.
+
+Finalmente para corroborar nuestro analisis se calculo el intervalo de confianza a partir de nuestro estimador puntual lo cual resulto en un intervalo de [4.856744 , 5.076219] donde se observa claramente que 4.7 no se encuentra dentro de dicho intervalo confirmando nuestro analisis anterior.
+
+
+### 4
+
+```{r}
+#Pregunta 4: ¿Será cierto que hay más atletas de raza blanca que redujeron sus mejores marcas en al menos 2,9 segundos que atletas de raza negra que lo hicieron en al menos 1,9 segundos?
+data = read.csv2("EP02Datos.csv")
+#filtro de datos
+blanca=data%>%filter(Raza=="Blanca")
+negra=data%>%filter(Raza=="Negra")
+#diferencia de tiempos para el calculo de su mejora
+blanca=blanca$Previo-blanca$Posterior
+negra=negra$Previo-negra$Posterior
+valornul=0
+
+#cantidades
+cantidadblanca=length(blanca)
+cantidadnegra=length(negra)
+
+#verificar normalidad de los datos
+normalidadA=shapiro.test(blanca)
+normalidadB=shapiro.test(negra)
+
+#Se utilizara el metodo de WALD para dos muestras, ya que en este caso queremos calcular porcentajes de mejora y luego compararlos
+
+#probabilidades estimadas
+
+cantidadp1=length(blanca[blanca>=2.9])
+cantidadp2=length(negra[negra>=1.9])
+
+p1=cantidadp1/cantidadblanca
+p2=cantidadp2/cantidadnegra
+
+#diferencia
+diferencia=p1-p2
+
+# Nivel de significancia
+alfa <- 0.05
+
+# Prueba de hipótesis con proporción agrupada
+p_agrupada <- (cantidadp1 + cantidadp2) / (cantidadblanca + cantidadnegra)
+ep1 <- p_agrupada * (1 - p_agrupada) / cantidadblanca
+ep2 <- p_agrupada * (1 - p_agrupada) / cantidadnegra
+sec <- sqrt(ep1 + ep2)
+valornul <- 0
+Z <- (diferencia - valornul) / sec
+p_valor <- pnorm(Z, lower.tail = FALSE)
+```
+
+Se solicita analizar las distintas muestras tanto los atletas de raza blanca y negra y responder a una pregunta respecto a las proporciones de estas.
+
+Se plantea la siguiente situacion:
+
+H0 : p1-p2=0. por lo tanto la proporcion de mejoria en torno a los segundos mencionados, es igual tanto para raza blanca y negra.
+ 
+H1: p1-p2>0. por lo tanto la proporcion de mejoria en torno a los segundos mencionados, es mayor para la raza blanca que para la raza negra.
+
+Para la prueba de hipotesis se decidio decantar por el metodo de Wald para dos muestras, ya que en este caso se quiere comparar los margenes de mejora y compararlos.
+
+se realiza la prueba con un nivel de significancia del 0.05 y se obtuvieron los siguientes datos:
+
+El estadistica Z = `r Z` y el p-valor = `r p_valor`. como se observa obtenemos un valor Z elevado lo que da indicios de que la Hipotesis nula puede no ser cierta, lo cual en conjunto con un p-valor menor a 0.05 nos lleva a rechazar la hipotesis nula en favor de la hipotesis alternativa, por lo que se concluye que hay mas atletas de raza blanca que redujeron sus mejores marcas en al menos 2,9 segundos que atletas de raza negra que lo hicieron en al menos 1,9 segundos.
+

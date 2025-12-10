@@ -1,0 +1,40 @@
+---
+title: "coment"
+author: "sebastian de la fuente"
+date: "2025-04-14"
+output: html_document
+---
+
+```{r}
+library ( DescTools )
+library ( ez )
+library ( ggpubr )
+library ( tidyverse )
+# Crear la matriz de datos en formato ancho7 
+A <- c (23 , 19 , 25 , 23 , 20)
+B <- c (26 , 24 , 28 , 23 , 29)
+C <- c (19 , 24 , 20 , 21 , 17)
+datos_anchos <- data.frame (A , B , C )
+# Llevar la matriz a formato largo 
+datos_largos <- datos_anchos|> pivot_longer( c ("A","B" ,"C") , names_to = "Algoritmo" , values_to="Tiempo" )
+datos_largos [[ "Algoritmo" ]] <- factor ( datos_largos [[ "Algoritmo" ]]) 
+datos_largos [[ "Instancia" ]] <- factor (1: nrow ( datos_largos ) )
+
+#Probar con ezANOVA
+prueba=ezANOVA(data=datos_largos, dv = Tiempo, wid = Instancia, between = Algoritmo, return_aov = TRUE)
+print(prueba)
+#probar ezPLOT
+ezPlot(
+  data = datos_largos,
+  dv = Tiempo,
+  wid = Instancia,
+  x = Algoritmo,
+  between = Algoritmo,
+  type = 3 # type=3 usualmente muestra medias y error estándar/IC
+)
+```
+
+
+
+
+

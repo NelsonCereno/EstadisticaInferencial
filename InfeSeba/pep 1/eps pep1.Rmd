@@ -1,0 +1,318 @@
+---
+title: "eps para pep 1"
+author: "sebastian de la fuente"
+date: "2025-05-11"
+output: html_document
+---
+#EP2
+
+T test
+condiciones
+normalidad de los datos
+no se conoce la desviacion estandar de la poblacion
+observaciones independientes
+
+preguntas
+
+1. El Comité Olímpico cree que el mejor tiempo medio de los atletas de raza negra después de ingresar al programa de entrenamiento es superior a 12,4 segundos. ¿Soportan los datos esta afirmación?
+
+H0: el mejor tiempo medio de los atletas de raza negra despues de ingresar al programa es igual a 12.4 segundos.
+H1: el mejor tiempo medio de los atletas de raza negra despues de ingresar al programa es mayor a 12.4 segundos.
+
+```{r}
+data=read.csv2("EP02 Datos(1).csv", sep=";")
+negra=data[data$Raza=="Negra",]
+normalidad=shapiro.test(negra$Posterior)
+n=length(negra$Posterior)
+prueba=t.test(negra$Posterior, mu=12.4, alternative="greater",conf.level=0.95)
+prueba
+```
+
+2. ¿Sugieren los datos que la mejor marca de los atletas de raza blanca se reduce en promedio 3,5 segundos tras el entrenamiento?
+
+h0: La mejor marca se reduce en promedio 3.5 segundos tras el entrenamiento.
+h1: La mejor marca no se reduce en promedio 3.5 segundos tras el entrenamiento.
+```{r}
+data=read.csv2("EP02 Datos(1).csv", sep=";")
+blanca=data[data$Raza=="Blanca",]
+normalidad=shapiro.test(blanca$Posterior)
+diferencias=-blanca$Posterior+blanca$Previo
+t.test(diferencias, mu=3.5, alternative="two.sided", conf.level=0.95)
+```
+
+3. ¿Es posible afirmar que, en promedio, los atletas de raza blanca superaban a los de raza oriental por menos de 3 segundos antes del entrenamiento?
+
+h0: En promedio, los atletas de raza blanca superaban a los de raza oriental por 3 segundos antes del entrenamiento.
+h1: En promedio, los atletas de raza blanca no superaban a los de raza oriental por 3 segundos antes del entrenamiento.
+
+```{r}  
+data=read.csv2("EP02 Datos(1).csv", sep=";")
+blanca=data[data$Raza=="Blanca",]
+oriental=data[data$Raza=="Oriental",]
+blanca_prev=blanca$Previo
+oriental_prev=oriental$Previo
+normalidad=shapiro.test(blanca_prev-oriental_prev)
+t.test(blanca_prev-oriental_prev, mu=3, alternative="two.sided", conf.level=0.95)
+```
+
+4. ¿Será cierto que hay más atletas de raza oriental que redujeron sus mejores marcas en al menos 4,3 segundos que atletas de raza negra que lo hicieron en al menos 1,4 segundos?
+
+h0: La mejora de marcas de los atletas de raza oriental es igual a la mejora de marcas de los atletas de raza negra.
+h1: La mejora de marcas de los atletas de raza oriental es diferente a la mejora de marcas de los atletas de raza negra.
+
+```{r}
+data=read.csv2("EP02 Datos(1).csv", sep=";")
+oriental=data[data$Raza=="Oriental",]
+negra=data[data$Raza=="Negra",]
+diferencias_oriental=oriental$Previo-oriental$Posterior
+diferencias_negra=negra$Previo-negra$Posterior
+diferencias_oriental=diferencias_oriental[diferencias_oriental>=4.3]
+diferencias_negra=diferencias_negra[diferencias_negra>=1.4]
+length(diferencias_oriental)
+length(diferencias_negra)
+```
+
+
+#EP 3 Poder estadistico
+En una planta química hay dos máquinas que envasan detergentes industriales en bidones con un volumen de producto que sigue una distribución normal con desviación estándar de 1 litro. La ingeniera a cargo de la planta debe asegurar que los bidones se están llenando con una media de 10 litros. Pero ella tiene la sospecha de que hay desviaciones en esta media, lo que piensa confirmar usando una muestra aleatoria de 100 envases (50 de cada una de las máquinas). También cree que hay diferencia en el cumplimiento del volumen requerido entre la máquina más antigua y la más moderna, que han de andar por el 90% y 96% de los bidones, respectivamente.
+
+1-Considerando un volumen medio de 10 litros, ¿cuántos bidones deberían revisarse para conseguir un poder estadístico de 0,75 y un nivel de significación de 0,05?
+
+```{r}
+library(pwr)
+alpha=0.05
+pwr=0.75
+sigma=1
+verdaderomedio=10.2
+mu=10
+d=(verdaderomedio-mu)/sigma
+pwr.t.test(n=NULL, d=d, sig.level=alpha, power=pwr, alternative="two.sided")
+```
+2. ¿Alcanzaría esta muestra para detectar la diferencia que la ingeniera sospecha que existe entre las dos máquinas de la planta con al menos las mismas probabilidades de cometer errores?
+
+```{r}
+library(pwr)
+alfa=0.05
+poder=0.8
+p1=0.96
+p2=0.90
+h=ES.h(p1, p2)
+n=pwr.2p.test(h=h, sig.level=alfa, power=poder, alternative="two.sided")
+n
+```
+
+#EP 4 inferencias no parametricas con frecuencias
+
+1. Una agencia de marketing desea determinar si hay una diferencia significativa en la efectividad de tres estrategias publicitarias utilizadas para promocionar un nuevo producto. Para ello, se ha recopilado información de personas que fueron expuestas a las tres estrategias publicitarias, registrando si mostraron una aceptación (A) o rechazo (R) a cada una de ellas.
+¿Qué puede concluir la agencia de marketing sobre la efectividad de las estrategias publicitarias para promover el nuevo producto?
+Indicación: obtenga la muestra de 50 personas a partir del archivo “EP04 Datos.csv” que se encuentra en el directorio compartido, usando la semilla 102. Considere un nivel de significación α=0,05.
+
+conceptos:
+efectividad en 3 estrategias para un producto -> muestras pareadas 1 producto diferentes categorias y variable dicotomica
+
+h0: la proporcion de aceptacion es igual para las 3 estrategias
+h1: la proporcion de aceptacion no es igual para las 3 estrategias
+```{r}
+library(RVAideMemoire)
+data=read.csv2("EP04 Datos.csv", sep=";")
+#obtener solo 50
+set.seed(102)
+data=data[sample(1:nrow(data), 50),]
+datos_largos <- reshape(data, 
+                        varying = c("estrategia_1", "estrategia_2", "estrategia_3"), 
+                        v.names = "Aceptacion", 
+                        timevar = "Estrategia", 
+                        times = c("estrategia_1", "estrategia_2", "estrategia_3"), 
+                        direction = "long")
+# Cambiar los niveles de la variable 'Estrategia' para que sean más descriptivos
+datos_largos$Estrategia <- factor(datos_largos$Estrategia, 
+                                  levels = c("estrategia_1", "estrategia_2", "estrategia_3"),
+                                  labels = c("Estrategia 1", "Estrategia 2", "Estrategia 3"))
+#realizar la prueba Q de Cochran para muestras pareadas
+cochran_result <- cochran.qtest(Aceptacion ~ Estrategia | id, data = datos_largos, alpha = 0.05)
+cochran_result
+```
+
+2. Una organización de conservación de la fauna silvestre estudia manadas de tres tipos de animales herbívoros en reservas naturales africanas. Se seleccionó aleatoriamente una muestra de 30 observaciones de los animales que se acercaron a beber agua en el principal afluente de las reservas Etosha y Mahago durante tres días consecutivos del mes de febrero. Se registraron 5 elefantes, 10 antílopes y 15 cebras en la primera, y 6 elefantes, 14 antílopes y 10 cebras en la segunda.
+
+¿Existe evidencia de que la proporción de especies es la misma en ambas reservas?
+
+n=30
+etosha:
+5 elefantes
+10 antilopes
+15 cebras
+mahango:
+6 elefantes
+14 antilopes
+10 cebras
+
+h0: La proporción de especies es la misma en ambas reservas.
+h1: La proporción de especies no es la misma en ambas reservas.
+
+```{r}
+# Crear tabla de contingencia
+Etosha = c(5, 10, 15)
+Mahago = c(6, 14, 10)
+tabla = as.table(rbind(Etosha, Mahago))
+dimnames(tabla) = list(reservas = c("Etosha", "Mahago"),
+                       especies = c("elefantes", "antílopes", "cebras"))
+print(tabla)
+chisq.test(tabla)
+```
+
+3. Una organización dedicada a la rehabilitación de villanos ha observado que muchos de ellos ingresan al programa con niveles elevados de hostilidad. Para abordar este problema, decidieron implementar un nuevo programa de bienvenida diseñado para reducir la hostilidad y facilitar la reintegración a la sociedad. Para evaluar la efectividad de este programa, se reclutó a un grupo de 20 villanos a quienes se les midió el nivel de hostilidad (alto o bajo) antes y después de participar en el programa de bienvenida. Los resultados se presentan a continuación:
+2 villanos no mostraron hostilidad ni antes ni después.
+15 villanos que inicialmente mostraban hostilidad dejaron de hacerlo.
+2 villanos mantuvieron un elevado nivel de hostilidad.
+el otro villano desarrolló síntomas de hostilidad tras participar en el programa cuando antes no era hostil.
+¿Qué se puede concluir acerca de la efectividad del nuevo programa de bienvenida para reducir la hostilidad en los villanos?
+
+h0: El programa de bienvenida no tiene efecto en la hostilidad de los villanos.
+h1: El programa de bienvenida tiene efecto en la hostilidad de los villanos.
+```{r}
+data <- data.frame(
+  id = 1:20,  # Identificador de cada villano
+  antes = c(rep("alto", 17), rep("bajo", 3)), 
+  despues = c(rep("bajo", 15), rep("alto", 2), "alto", rep("bajo", 2))
+)
+data
+# Crear tabla de contingencia
+tabla <- table(data$antes, data$despues)
+tabla
+mcnemar.test(tabla)
+```
+
+4. Durante un apocalipsis zombie, un grupo de 10 mujeres y 14 hombres sobrevivientes se encuentra buscando desesperadamente refugio y encuentran dos edificios abandonados que podrían servir: una escuela y un centro comercial. Algunas personas piensan que la escuela es más segura, mientras que otras consideran que el centro comercial es más seguro. Después de elegir sus opciones, se observa que 6 mujeres y 10 hombres eligen refugiarse en la escuela abandonada mientras que los otros optan por el centro comercial.
+¿Hay relación entre el sexo de la persona y el edificio abandonado que encuentra más seguro?
+
+
+h0: Hay relación entre el sexo de la persona y el edificio abandonado que encuentra más seguro.
+h1: No Hay relación entre el sexo de la persona y el edificio abandonado que encuentra más seguro.
+
+10 mujeres 
+14 hombres
+escuela
+centro comeercial
+6 mujeres y 10 hombres escuela
+4 mujeres y 4 hombres centro comercial
+
+```{r}
+tabla <- matrix(c(6, 4, 10, 4), nrow = 2, byrow = TRUE)
+colnames(tabla) <- c("Escuela", "CentroComercial")
+rownames(tabla) <- c("Mujeres", "Hombres")
+
+print(tabla)
+
+resultado <- fisher.test(tabla)
+
+print(resultado)
+```
+#EP 5 ANOVA muestras independientes
+¿Existen diferencias en el tiempo de resolución de cubos 2x2x2 entre participantes de Chile, Perú y Argentina?
+
+Realizar todo el procedimiento ANOVA para muestras independientes
+
+1. Plantear hipótesis nula y alternativa.
+h0: No existen diferencias en el tiempo de resolución de cubos 2x2x2 entre participantes de Chile, Perú y Argentina.
+h1: Existen diferencias en el tiempo de resolución de cubos 2x2x2 entre participantes de Chile, Perú y Argentina.
+
+2. Verificar condiciones de aplicabilidad de la prueba anova.
+
+```{r}
+data=read.csv2("EP05 Datos.csv", sep=";")
+library(ez)
+#las variables son independientes ya que son participantes distintos y de distintos paises
+datafiltrada=data[data$tipo=="2x2x2",]
+# Filtrar los datos para los países Chile, Argentina y Perú
+datafiltrada <- datafiltrada[datafiltrada$pais %in% c("Chile", "Argentina", "Perú"), ]
+#Normalidad de los datos
+# Filtrar los datos para cada país y tipo de muestra
+chile <- datafiltrada[datafiltrada$pais == "Chile", ]
+peru <- datafiltrada[datafiltrada$pais == "Perú", ]
+argentina <- datafiltrada[datafiltrada$pais == "Argentina", ]
+# Verificar la normalidad de los datos para cada país
+# Realizar la prueba de normalidad para cada país
+normalidad1 <- shapiro.test(chile$tiempo)
+normalidad2 <- shapiro.test(peru$tiempo)
+normalidad3 <- shapiro.test(argentina$tiempo)
+
+# Imprimir los resultados de las pruebas de normalidad
+print(normalidad1)
+print(normalidad2)
+print(normalidad3)
+#Realizar procedimiento ANOVA
+anova_result <- aov(tiempo ~ pais, data = datafiltrada)
+anovaresult3= ezANOVA(data=datafiltrada, dv=tiempo, wid=id, between=pais,return_aov=TRUE)
+#summary(anova_result)
+print(anovaresult3)
+
+# realizar posthoc
+tukey_result <- TukeyHSD(anovaresult3$aov,wich="pais",conf.level = 0.95)
+print(tukey_result,digits=15)
+```
+
+
+#EP 6 ANOVA muestras correlacionadas
+
+En este momento, los investigadores buscan determinar si existen diferencias en el tiempo que tardan los usuarios en formular consultas para problemas con diferente nivel de dificultad en el área de física.
+
+en primera instancia se define la hipotesis nula a contrastar:
+H0: No existen diferencias en el tiempo que tardan los usuarios en formular consultas para problemas con diferente nivel de dificultad en el área de física.
+H1: Existen diferencias en el tiempo que tardan los usuarios en formular consultas para problemas con diferente nivel de dificultad en el área de física.
+
+Antes de realizar el procedimiento correspondiente, es necesario verificar las condiciones de aplicabilidad de la prueba ANOVA para muestras Pareadas. considerando un nivel de significancia de 0.05
+
+```{r}
+library(ez)
+library(emmeans)
+# Cargar el paquete
+library(nlme)
+data=read.csv2("EP06 Datos.csv", sep=",")
+datafiltrada=data[data$area=="Física",]
+alpha=0.05
+#Condiciones
+
+#Normalidad de los grupos
+normalidad1=shapiro.test(datafiltrada$tiempo[datafiltrada$dificultad=="Baja"])
+normalidad2=shapiro.test(datafiltrada$tiempo[datafiltrada$dificultad=="Media"])
+normalidad3=shapiro.test(datafiltrada$tiempo[datafiltrada$dificultad=="Alta"])
+# Imprimir los resultados de las pruebas de normalidad
+print(normalidad1)
+print(normalidad2)
+print(normalidad3)
+
+#realizar la prueba anova para muestras pareadas
+prueba=ezANOVA(data=datafiltrada, dv=tiempo, wid=id, within=dificultad,return_aov=TRUE)
+print(prueba)
+#realizar posthoc para anova pareada
+lm=lme(tiempo~dificultad,random=~1|id,data=datafiltrada)
+marginal=emmeans(lm, ~ dificultad)
+contraste=contrast(marginal, "pairwise", adjust="tukey")
+```
+
+#EP 7 Medidas para datos complejos (no normales)
+
+1. Observando los datos, la memorista sospecha que hay diferencias significativas en el tiempo de ejecución entre las versiones A y B del algoritmo cuando las instancias tienen 70 o más nodos. ¿Los datos respaldan la intuición de la memorista?
+Para responder, filtren los datos para tener las instancias con 70 o más nodos y seleccionen las columnas de los tiempos de ejecución de las versiones A y B (en formato ancho). Usando como semilla el valor 73, obtengan muestras aleatorias independientes de 24 tiempos registrados por la versión A y 20 tiempos registrados por la versión B del algoritmo. Realicen un análisis estadístico pertinente (enunciar hipótesis, revisar condiciones, seleccionar pruebas ómnibus y post-hoc según corresponda) para responder la pregunta planteada, utilizando pruebas no paramétricas de ser necesario.
+
+```{r}
+data=read.csv2("EP07 Datos.csv", sep=",")
+#filtrado de datos correspondiente
+seed=73
+set.seed(seed)
+datafiltrada=data[data$n.nodos>=70,]
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

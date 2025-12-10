@@ -1,0 +1,129 @@
+---
+title: "EP 08"
+date: "2025-05-13"
+output: html_document
+---
+Trabajando con metodos robustos cuando los datos no son normales se necesita inferir acerca de la media de 3 grupos independientes con datos no normales por lo que se debe usar la prueba.
+
+Propongan una pregunta de investigación original, que involucre la comparación de las medias de más de dos grupos independientes (más abajo se dan unos ejemplos). Fijando una semilla distinta a la anterior, seleccionen una muestra aleatoria de hogares (200 < n < 300) y respondan la pregunta propuesta utilizando bootstrapping. Solo por ejercicio académico, aplique un análisis post-hoc con bootstrapping aunque este no fuera necesario. Indicación: consideren que el análisis post-hoc debe hacerse con las mismas remuestras usadas para la prueba ómnibus.
+
+```{r}
+library(boot)
+library(dplyr)
+library(ggplot2)
+
+data=read.csv2("EP08 Datos CASEN 2017.csv",sep = ",")
+set.seed(14)
+muestra <- data %>% 
+  sample_n(299) 
+muestra <- muestra %>% select(id.vivienda,educ,ytotcorh)
+muestra <- muestra %>% filter(educ %in%c("M. Hum. Completa","Básica Compl.","Básica Incom.","Técnico Nivel Superior Completo","M. Téc Completa"))
+#verificar normalidad de los datos
+
+# Boxplot para comparar provincias
+ggplot(muestra, aes(x = educ, y = ytotcorh, fill = educ)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Distribución de ingresos totales por provincia", x = "Provincia", y = "Ingresos totales")
+normalidad=shapiro.test(muestra$ytotcorh)
+
+#se observa que las medias no son normales por lo que se puede utilizar el metodo de bootstrapping para encontrar la media de las muestras
+
+#primero definimos la funcion para calcular la media repetidamente
+library(boot)
+
+# Modificar la función de estadística para ANOVA con remuestreo estratificado
+anova.stat.strat <- function(data, indices) {
+  # Resamplear estratificado
+  educacion <- unique(data$educ)  # Cambiar 'region' por 'educ'
+  
+  # Resamplear por cada grupo/educacion
+  resampleado <- do.call(rbind, lapply(educacion, function(edu) {
+    d_edu <- data[data$educ == edu, ]  # Cambiar 'region' por 'educ'
+    d_edu[sample(1:nrow(d_edu), nrow(d_edu), replace = TRUE), ]
+  }))
+  
+  # Ajustar el modelo ANOVA al conjunto remuestreado
+  fit <- aov(ytotcorh ~ educ, data = resampleado)  # Cambiar 'region' por 'educ'
+  return(summary(fit)[[1]][1, "F value"])  # Retornar el valor F
+}
+
+# Número de remuestras
+B <- 2500
+set.seed(223)
+
+# Aplicar bootstrap con la función personalizada
+boot.anova.strat <- boot(data = muestra, 
+                         statistic = anova.stat.strat, 
+                         R = B)
+
+# Valor observado (ANOVA en la muestra original)
+f_obs <- anova.stat.strat(muestra, 1:nrow(muestra_2))
+
+# Intervalo de confianza con remuestreo estratificado
+alfa <- 0.05
+intervalo_bootstrap <- boot.ci(boot.anova.strat, conf = 1 - alfa, type = "bca")
+print(intervalo_bootstrap)
+
+# Cálculo del p-valor basado en la distribución nula desplazada
+valor_nulo <- 1  # Valor bajo la hipótesis nula (generalmente se asume F=1)
+media_f <- mean(boot.anova.strat$t)
+desplazamiento <- media_f - valor_nulo
+distribucion_nula <- boot.anova.strat$t - desplazamiento
+p <- (sum(distribucion_nula >= f_obs) + 1) / (B + 1)  # Asegúrate de usar >= en lugar de > para mayor precisión
+cat("P-valor:", p, "\n")
+
+
+
+# Definimos la función para calcular la diferencia de medias en el remuestreo estratificado
+post_hoc_diff_strat <- function(data, indices, grupo1, grupo2) {
+  # Resamplear por cada grupo
+  d_grupo1 <- data[data$educ == grupo1, ]
+  d_grupo2 <- data[data$educ == grupo2, ]
+  
+  # Resampleo con reemplazo
+  resampleado_grupo1 <- d_grupo1[sample(1:nrow(d_grupo1), nrow(d_grupo1), replace = TRUE), ]
+  resampleado_grupo2 <- d_grupo2[sample(1:nrow(d_grupo2), nrow(d_grupo2), replace = TRUE), ]
+  
+  # Calcular la diferencia de medias
+  media_grupo1 <- mean(resampleado_grupo1$ytotcorh)
+  media_grupo2 <- mean(resampleado_grupo2$ytotcorh)
+  
+  return(media_grupo1 - media_grupo2)
+}
+
+# Lista de niveles educativos (grupos)
+educacion <- unique(muestra$educ)
+
+# Generar todas las combinaciones de pares de grupos educativos
+pares <- t(combn(educacion, 2))
+
+# Número de remuestras para el análisis post-hoc
+B_posthoc <- 1000
+alfa <- 0.05
+
+# Realizar análisis post-hoc para todas las combinaciones de pares
+set.seed(456)
+post_hoc_results <- lapply(1:nrow(pares), function(i) {
+  grupo1 <- pares[i, 1]
+  grupo2 <- pares[i, 2]
+  
+  # Realizar bootstrap para la diferencia de medias
+  boot.pair <- boot(data = muestra, 
+                    statistic = function(data, indices) post_hoc_diff_strat(data, indices, grupo1, grupo2), 
+                    R = B_posthoc)
+  
+  # Calcular intervalo de confianza para la diferencia de medias
+  ci <- boot.ci(boot.pair, conf = 1 - alfa, type = "perc")
+  
+  return(list(par = paste(grupo1, "vs", grupo2), ci = ci, boot = boot.pair))
+})
+
+# Mostrar los resultados del análisis post-hoc
+for (result in post_hoc_results) {
+  cat("Comparación:", result$par, "\n")
+  cat("Intervalo de confianza al 95%: [", result$ci$perc[4], ",", result$ci$perc[5], "]\n\n")
+}
+
+```
+

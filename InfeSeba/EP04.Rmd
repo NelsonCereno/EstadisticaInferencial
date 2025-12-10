@@ -1,0 +1,43 @@
+---
+title: "EP04"
+author: "sebastian de la fuente"
+date: "2025-04-09"
+output: html_document
+---
+## CONTEXTO
+
+Un hotel está implementando un nuevo protocolo de limpieza para mejorar la calidad de servicio y la satisfacción de sus huéspedes. Para evaluar la efectividad de este protocolo, se seleccionaron aleatoriamente 25 habitaciones y se aplicó el protocolo de limpieza antiguo y nuevo de forma alternada. Después de la primera limpieza, se evaluó la calidad de limpieza de cada habitación. Luego, después de la segunda limpieza con el protocolo alternativo, se volvió a evaluar la calidad de limpieza. Los resultados se presentan a continuación:
+4 habitaciones mostraron una calidad de limpieza baja en ambas ocasiones.
+5 habitaciones con calidad de limpieza baja con el protocolo antiguo mostraron una mejora con el nuevo.
+9 habitaciones mantuvieron una alta calidad de limpieza con ambos protocolos.
+7 habitaciones mostraron una alta calidad de limpieza con el protocolo antiguo, pero una disminución con el protocolo nuevo.
+
+### Pregunta
+
+¿Hay evidencia de que el nuevo protocolo de limpieza haya tenido un efecto significativo en la calidad de limpieza de las habitaciones del hotel?
+
+## SOLUCIÓN
+
+Para responder la pregunta planteada debemos identificar que tipo de prueba debemos utilizar y la hipotesis a contrastar.
+En este caso se nos dice que existe una muestra de 25 habitaciones, y que se aplicaron dos protocolos de limpieza diferentes. Por lo tanto, la prueba a utilizar es la prueba de McNemar, que se utiliza para comparar dos proporciones en muestras relacionadas, ya que es la misma habitacion en distintos protocolos.
+el nivel de significancia que se utilizara sera de 0.05, y la prueba sera de dos colas.
+y la hipotesis nula a contrastar es la siguiente:
+- H0: No hay diferencia en la calidad de limpieza entre el protocolo antiguo y el nuevo.
+- H1: Hay una diferencia en la calidad de limpieza entre el protocolo antiguo y el nuevo.
+
+```{r}
+# --- 1. Crear la tabla de contingencia ---
+datos_matriz <- matrix(c(9, 5, 7, 4),
+                      nrow = 2, ncol = 2,
+                      dimnames = list("Protocolo Antiguo" = c("Alta", "Baja"),
+                                      "Protocolo Nuevo"   = c("Alta", "Baja")))
+print("Tabla de Contingencia:")
+datos_matriz
+
+resultado_mcnemar <- mcnemar.test(datos_matriz)
+
+print("Resultado de la Prueba de McNemar:")
+resultado_mcnemar
+
+```
+El resultado de la prueba nos indica que el valor p es 0.7728, lo que significa que no hay evidencia suficiente para rechazar la hipótesis nula. Por lo tanto, no podemos concluir que el nuevo protocolo de limpieza haya tenido un efecto significativo en la calidad de limpieza de las habitaciones del hotel.

@@ -1,0 +1,96 @@
+---
+title: "ejercicio1"
+author: "sebastian de la fuente"
+date: "2025-06-30"
+output: html_document
+---
+
+```{r}
+library(car)
+library(dplyr)
+library(ggpubr)
+library(psych)
+library(ggplot2)
+data=read.csv2("EP09 Datos.csv")
+set.seed(3774)
+#seleccionar 100 hombres
+#primero filtrar los datos solo hombres
+data=data %>% filter(Gender==1)
+#despues seleccionar 100 hombres al azar
+data=data %>% sample_n(100)
+#dividir el conjunto de entrenamiento y prueba. 70 y 30
+data_ent=data[1:70,]
+data_prueba=data[71:100,]
+#seleccionar de forma aleatoria 8 variables
+nombre_respuesta <- "Weight"
+variables <- colnames(data_ent)
+i_respuesta <- which(variables == nombre_respuesta)
+predictores <- sample(variables[-i_respuesta], 8, replace = FALSE)
+#seleccionar una variable de las restantes
+data_resto=data |> select(!all_of(predictores))
+i_respuesta_resto <- which(colnames(datos_resto) == nombre_respuesta)
+correlacion <- cor(datos_resto[-i_respuesta_resto], y = datos_resto[[nombre_respuesta]])
+correlacion
+variable="Hip.Girth"
+
+#creamos un RLS con la variable de los restantes escogidos
+modelosimple=lm(as.formula(paste(nombre_respuesta, "~", variable)), data = data_ent)
+summary(modelosimple)
+
+#predictores
+predictores
+#realizamos la seleccion del modelo usando una regresion hacia adelante
+modelonulo=lm(as.formula(paste(nombre_respuesta, "~ 1")), data = data_ent)
+modelo1=update(modelonulo, as.formula(paste(". ~ . +", variable)))
+modelo2=update(modelo1, as.formula(paste(". ~ . +", predictores[1])))
+modelo3=update(modelo2, as.formula(paste(". ~ . +", predictores[2])))
+modelo4=update(modelo3, as.formula(paste(". ~ . +", predictores[7])))
+modelo5=update(modelo4, as.formula(paste(". ~ . +", predictores[8])))
+#resumen de los modelos
+anova(modelonulo, modelo1, modelo2, modelo3, modelo4, modelo5)
+AIC(modelonulo, modelo1, modelo2, modelo3, modelo4, modelo5)
+#se escoge el modelo 3 ya que es el que nos ofrece un AIC bajo y los de despues no aportan significativamente
+#resumen del modelo 3
+cat("modelo elegido")
+summary(modelo3)
+
+#calidad predictiva
+```
+
+```{r}
+#calidad predictiva
+#1. variable de salida cuantitatica y continua si ya que es el peso
+#2. variables predictoras cuantitativas o dicotomicas si
+#3. no hay predicotres con varianza no nula
+for (i in 1:length(predictores)) {
+  cat("Variable:", predictores[i], "\n")
+  cat("Varianza:", var(data_ent[[predictores[i]]]), "\n")
+}
+#revisaremos normalidad y linealidad
+residualPlots(modelo3)
+qqPlot(modelo3, main = "QQ Plot del modelo 3")
+
+#homostaceidad
+ncvTest(modelo3)
+#multicolinealidad
+vif(modelo3)
+#residuos independientes
+durbinWatsonTest(modelo3)
+#valores atipicos
+influencePlot(modelo3, main = "Influencia del modelo 3")
+
+anova(modelosimple, modelo3)
+
+#calidad predictiva
+predicciones <- predict(modelo3, newdata = data_prueba)
+#rmse datos de entrenamiento
+rmseent=sqrt(mean(resid(modelo3) ** 2))
+#calcular rmse en base a las predicciones
+rmse <- sqrt(mean((data_prueba[[nombre_respuesta]] - predicciones)^2))
+
+
+describe(data |> pull(all_of("Weight")), skew = FALSE)
+rmseent
+rmse
+
+```

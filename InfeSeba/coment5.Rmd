@@ -1,0 +1,24 @@
+---
+title: "Comentario"
+author: "sebastian de la fuente"
+date: "2025-04-09"
+output: html_document
+---
+
+```{r}
+# Crear la matriz de datos
+# Filas: Mejoría (Sí, No), Columnas: Tratamiento (Magnesio, Placebo)
+datos <- matrix(c(12, 3, 3, 14), nrow = 2, byrow = TRUE)
+
+# (Opcional) Añadir nombres a las filas y columnas para mayor claridad
+rownames(datos) <- c("Mejoría", "Sin Mejoría")
+colnames(datos) <- c("Magnesio", "Placebo")
+
+# Imprimir la tabla para verificar
+print(datos)
+
+# Realizar la prueba exacta de Fisher
+resultado_fisher <- fisher.test(datos)
+
+print(resultado_fisher)
+```
