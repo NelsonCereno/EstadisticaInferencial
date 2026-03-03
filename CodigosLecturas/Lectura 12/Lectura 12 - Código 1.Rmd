@@ -1,0 +1,113 @@
+---
+title: "Untitled"
+output: html_document
+date: "2026-03-03"
+---
+
+# ejemplo de la construcción de un modelo de regresión logística en R.
+
+```{r setup, include=FALSE}
+
+library(caret)
+library(dplyr)
+library(ggpubr)
+library(pROC)
+
+# Cargar y filtrar los datos, teniendo cuidado de dejar "automático" como el
+# 2do nivel de la variable "am" para que sea considerada como la clase positiva.
+datos <- mtcars |> filter(wt > 2 & wt < 5) |>
+  mutate(am = factor(am, levels = c(1, 0), labels = c("manual", "automático")))
+
+# Separar conjuntos de entrenamiento y prueba, fijando una semilla para asegurar
+# la reproducibilidad de los resultados.
+set.seed(101)
+n <- nrow(datos)
+i_muestra <- sample.int(n = n, size = floor(0.7 * n), replace = FALSE)
+datos_ent <- datos[i_muestra, ]
+datos_pru <- datos[-i_muestra, ]
+
+# Ajustar y mostrar modelo
+modelo <- glm(am ~ wt, family = binomial(link = "logit"), data = datos_ent)
+print(summary(modelo), signif.stars = FALSE)
+cat("---\n")
+print(anova(modelo, test = "LRT"), signif.stars = FALSE)
+
+```
+
+# evaluación del modelo de RLog en los datos de entrenamiento.
+
+```{r setup, include=FALSE}
+
+#
+# Evaluar el modelo con el conjunto de entrenamiento
+#
+probs_ent <- fitted(modelo)
+
+# Graficar curva ROC, indicando AUC obtenido.
+ROC_ent <- roc(datos_ent[["am"]], probs_ent,
+               levels = c("manual", "automático"), direction = "<")
+g_ROC_ent <- ggroc(ROC_ent, color = "steelblue")
+g_ROC_ent <- g_ROC_ent + geom_abline(intercept = 1, slope = 1,
+                                     colour = "steelblue1", linetype = "dashed")
+g_ROC_ent <- g_ROC_ent + xlab("Especificidad") + ylab("Sensibilidad")
+texto_ent <- sprintf("AUC = %.2f", ROC_ent[["auc"]])
+g_ROC_ent <- g_ROC_ent + annotate("text", x = 0.3, y = 0.3, label = texto_ent)
+print(g_ROC_ent)
+
+# Obtener las predicciones.
+umbral <- 0.5
+preds_ent <- sapply(probs_ent,
+                    function(p) ifelse(p >= umbral, "automático", "manual"))
+preds_ent <- factor(preds_ent, levels = c("manual", "automático"))
+
+# Obtener y mostrar estadísticas de clasificación en datos de entrenamiento.
+mat_conf_ent <- confusionMatrix(preds_ent, datos_ent[["am"]],
+                                positive = "automático")
+cat("\n\nEvaluación de la calidad predictora (cjto. de entrenamiento):\n")
+cat("--------------------------------------------------------------\n")
+print(mat_conf_ent[["table"]])
+cat("\n")
+cat(sprintf("       Exactitud: %.3f\n", mat_conf_ent[["overall"]]["Accuracy"]))
+cat(sprintf("   Sensibilidad: %.3f\n", mat_conf_ent[["byClass"]]["Sensitivity"]))
+cat(sprintf("  Especificidad: %.3f\n", mat_conf_ent[["byClass"]]["Specificity"]))
+
+```
+
+# evaluación del modelo de RLog en los datos de prueba.
+
+
+```{r setup, include=FALSE}
+
+#
+# Evaluar el modelo con el conjunto de prueba.
+#
+probs_pru <- predict(modelo, datos_pru, type = "response")
+
+# Graficar curva ROC, indicando AUC obtenido.
+ROC_pru <- roc(datos_pru[["am"]], probs_pru,
+               levels = c("manual", "automático"), direction = "<")
+g_ROC_pru <- ggroc(ROC_pru, color = "steelblue")
+g_ROC_pru <- g_ROC_pru + geom_abline(intercept = 1, slope = 1,
+                                     colour = "steelblue1", linetype = "dashed")
+g_ROC_pru <- g_ROC_pru + xlab("Especificidad") + ylab("Sensibilidad")
+texto_pru <- sprintf("AUC = %.2f", ROC_pru[["auc"]])
+g_ROC_pru <- g_ROC_pru + annotate("text", x = 0.3, y = 0.3, label = texto_pru)
+print(g_ROC_pru)
+
+# Obtener las predicciones (con el mismo umbral).
+preds_pru <- sapply(probs_pru,
+                    function(p) ifelse(p >= umbral, "automático", "manual"))
+preds_pru <- factor(preds_pru, levels = c("manual", "automático"))
+
+# Obtener y mostrar estadísticas de clasificación en datos de prueba.
+mat_conf_pru <- confusionMatrix(preds_pru, datos_pru[["am"]],
+                                positive = "automático")
+cat("\n\nEvaluación del modelo (cjto. de prueba):\n")
+cat("----------------------------------------\n")
+print(mat_conf_pru[["table"]])
+cat("\n")
+cat(sprintf("       Exactitud: %.3f\n", mat_conf_pru[["overall"]]["Accuracy"]))
+cat(sprintf("   Sensibilidad: %.3f\n", mat_conf_pru[["byClass"]]["Sensitivity"]))
+cat(sprintf("  Especificidad: %.3f\n", mat_conf_pru[["byClass"]]["Specificity"]))
+
+```

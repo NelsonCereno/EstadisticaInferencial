@@ -1,0 +1,99 @@
+---
+title: "Untitled"
+output: html_document
+date: "2026-03-03"
+---
+
+# datos y graficación de las diferencias de pares de observaciones del ejemplo.
+```{r setup, include=FALSE}
+library(dplyr)
+library(ggpubr)
+library(tidyr)
+library(WRS2)
+
+# Construir las estructuras con los datos
+A <- c(32.0, 32.0, 32.0, 32.0, 32.1, 32.1, 32.1, 32.2, 32.3, 32.3, 32.5, 32.7, 32.7,
+       32.7, 33.1, 33.4, 33.9, 34.1, 34.2, 34.5, 36.0, 36.6, 36.7, 37.2, 38.0)
+
+B <- c(33.0, 33.0, 33.0, 33.0, 33.0, 33.0, 33.3, 33.3, 33.3, 33.3, 33.5, 33.6, 33.7,
+       33.9, 33.9, 34.2, 34.2, 34.3, 34.3, 34.4, 34.5, 34.6, 36.4, 38.9, 40.2)
+
+C <- c(32.0, 32.2, 32.5, 32.6, 32.7, 32.7, 32.7, 33.0, 33.2, 33.4, 33.6, 33.6, 33.9,
+       34.1, 34.2, 34.4, 34.4, 34.5, 34.6, 34.7, 36.3, 36.6, 36.7, 38.9, 39.2)
+
+datos_anchos <- data.frame(Instancia = factor(1:length(A)), A, B, C)
+dif_anchos <- data.frame(A_B = A - B, A_C = A - C, B_C = B - C)
+
+# Llevar las matrices de datos a formato largo
+datos <- datos_anchos |>
+  pivot_longer(c("A", "B", "C"), names_to = "Algoritmo", values_to = "Tiempo") |>
+  mutate(Algoritmo = factor(Algoritmo))
+dif <- dif_anchos |>
+  pivot_longer(everything(), names_to = "Algoritmos", values_to = "Diferencia") |>
+  mutate(Algoritmos = factor(Algoritmos))
+
+# Obtener gráficos Q-Q de las diferencias
+qq <- ggqqplot(dif, x = "Diferencia", facet.by = "Algoritmos",
+               color = "Algoritmos", palette = c("steelblue", "steelblue1", "steelblue4"),
+               xlab = "Cuantil teórico", ylab = "Diferencias en tiempos\nde ejecución [ms]")
+qq <- qq + theme(legend.position = "none")
+print(qq)
+```
+
+# análisis robusto de una vía para muestras correlacionadas.
+
+
+```{r setup, include=FALSE}
+# Fijar nivel de significación y nivel de poda
+alfa <- 0.05
+gamma <- 0.2
+
+# Comparar los algoritmos usando medias truncadas de las diferencias
+mr_rob <- rmanova(y = datos[["Tiempo"]], groups = datos[["Algoritmo"]],
+                  blocks = datos[["Instancia"]], tr = gamma)
+
+cat("Análisis de una vía para medidas repetidas (asimpótico)\n")
+cat("-------------------------------------------------------\n")
+print(mr_rob)
+
+if(mr_rob[["p.value"]] < alfa) {
+  mr_rob_ph <- rmmcp(y = datos[["Tiempo"]], groups = datos[["Algoritmo"]],
+                     blocks = datos[["Instancia"]], tr = gamma, alpha = alfa)
+  
+  cat("Análisis post-hoc para medidas repetidas (asimpótico)\n")
+  cat("-------------------------------------------------------\n")
+  print(mr_rob_ph)
+}
+
+```
+
+
+# análisis robusto de una vía para muestras correlacionadas usando bootstrapping.
+
+
+```{r setup, include=FALSE}
+# Comparar los algoritmos usando diferencias truncadas y bootstrapping
+nboot <- 999
+set.seed(666)
+mr_bt <- rmanovab(y = datos[["Tiempo"]], groups = datos[["Algoritmo"]],
+                  blocks = datos[["Instancia"]], tr = gamma, nboot = nboot)
+
+cat("Análisis de una vía para medidas repetidas (bootstrapped)\n")
+cat("---------------------------------------------------------\n")
+print(mr_bt)
+
+if(mr_bt[["test"]] > mr_bt[["crit"]]) {
+  set.seed(666)
+  mr_bt_ph <- pairdepb(y = datos[["Tiempo"]], groups = datos[["Algoritmo"]],
+                       blocks = datos[["Instancia"]], tr = gamma, nboot = nboot)
+  
+  cat("Análisis post-hoc para medidas repetidas (bootstrapped)\n")
+  cat("---------------------------------------------------------\n")
+  print(mr_bt_ph)
+}
+```
+
+
+```{r setup, include=FALSE}
+
+```
