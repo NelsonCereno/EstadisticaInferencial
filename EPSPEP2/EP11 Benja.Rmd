@@ -1,0 +1,189 @@
+---
+title: "EP11"
+date: "2026-01-23"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=F}
+library(caret)
+library(dplyr)
+library(leaps)
+```
+
+### 1. Definir la semilla a utilizar, que corresponde a los primeros cinco dígitos del RUN del integrante de mayor edad del equipo.
+
+Para los pasos preliminares:
+
+```{r, warning=F, message=F}
+set.seed(21149)
+
+datos <- read.csv2("EP09 Datos.csv")
+```
+
+### 2. Seleccionar una muestra de 100 personas, asegurando que la mitad tenga estado nutricional “sobrepeso” y la otra mitad “no sobrepeso”.
+```{r, warning=F, message=F}
+datos$IMC <- datos$Weight / (datos$Height / 100)^2
+
+# El estándar (OMS) define el sobrepeso generalmente cuando el IMC es igual o superior a 25.
+datos$EN <- ifelse(datos$IMC >= 25, "sobrepeso", "no sobrepeso")
+datos$EN <- as.factor(datos$EN)
+
+grupo_sobrepeso <- datos %>% filter(EN == "sobrepeso")
+grupo_no_sobrepeso <- datos %>% filter(EN == "no sobrepeso")
+
+muestra_sp <- sample_n(grupo_sobrepeso, 50)
+muestra_nosp <- sample_n(grupo_no_sobrepeso, 50)
+
+muestra_final <- rbind(muestra_sp, muestra_nosp)
+```
+
+### 3. Usando las herramientas del paquete leaps, realizar una búsqueda exhaustiva para seleccionar entre dos y ocho predictores que ayuden a estimar la variable Peso (Weight), obviamente sin considerar las nuevas variables IMC ni EN, y luego utilizar las funciones del paquete caret para construir un modelo de regresión lineal múltiple con los predictores escogidos y evaluarlo usando bootstrapping.
+Ahora, queremos realizar una búsqueda exhaustiva para seleccionar variables que ayuden a la variable weight usando el paquete leaps, y usar el paquete caret para construir un modelo de RLM.
+
+```{r, warning=F, message=F}
+set.seed(21149)
+busqueda <- regsubsets(Weight ~ . -IMC -EN, 
+                       data = muestra_final, 
+                       method = "exhaustive", 
+                       nvmax = 8)
+
+resumen <- summary(busqueda)
+
+# Visualizar cuál es el mejor número de variables según BIC 
+plot(resumen$bic, type = "l", xlab = "Número de Variables", ylab = "BIC", main = "Mejor subconjunto por BIC")
+which.min(resumen$bic)
+```
+Podemos verificar que el modelo óptimo según el BIC es el modelo número 8, es decir, el que incluye 8 variables. Para verificar esas variables:
+
+```{r, warning=F, message=F}
+resumen$outmat
+```
+Luego, las 8 variables más significativas son: Chest.diameter, Waist.Girth, Hip.Girth, Bicep.Girth, Knee.Girth, Calf.Maximum.Girth, Age y Height
+
+Con estas variables, determinamos la fórmula del modelo y realizamos Bootstrapping con 100 repeticiones para entrenar el modelo y poder evaluarlo
+
+```{r, warning=F, message=F}
+set.seed(21149)
+formula_final <- Weight ~ Chest.diameter + Waist.Girth + Hip.Girth + Bicep.Girth + Knee.Girth + Calf.Maximum.Girth + Age + Height
+
+ctrl_boot <- trainControl(method = "boot", number = 100)
+
+modelo_boot <- train(formula_final,
+                     data = muestra_final,
+                     method = "lm",
+                     trControl = ctrl_boot)
+
+print(modelo_boot)
+```
+
+El modelo final presenta un RMSE de 2.31 aprox. Esto significa que, en promedio, el modelo se equivoca por 2.31kg al predecir el peso. El R^2 de ~0.98 indica que el modelo y sus 8 variables explican el comportamiento de la variable weight en un 98%. Estos resultados son aceptables, considerando la variación del peso de un adulto. Por ende, el modelo es confiable y tiene un poder predictivo muy alto.
+
+### 4. Haciendo un poco de investigación sobre el paquete caret, en particular cómo hacer Recursive Feature Elimination (RFE), construir un modelo de regresión lineal múltiple para predecir la variable IMC que incluya entre 10 y 20 predictores, seleccionando el conjunto de variables que maximice R2 y que use cinco repeticiones de validación cruzada de cinco pliegues para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura ni estado nutricional –Weight, Height, EN respectivamente).
+Ahora, para realizar la eliminación recursiva de características (RFE) con el objetivo de predecir IMC usando entre 10 y 20 variables, sin usar weight, height ni EN, maximizando R^2 y realizando 5 repeticiones de validación cruzada de 5 pliegues:
+
+```{r, warning=F, message=F}
+set.seed(21149)
+
+variables_prohibidas <- c("Weight", "Height", "EN", "IMC")
+
+x_predictores <- muestra_final[, !(names(muestra_final) %in% variables_prohibidas)]
+
+y_respuesta <- muestra_final$IMC
+
+# el control para RFE
+control_rfe <- rfeControl(functions = lmFuncs, 
+                          method = "repeatedcv", 
+                          number = 5, 
+                          repeats = 5,
+                          verbose = FALSE)
+
+# ejecutar RFE
+rfe_resultado <- rfe(x = x_predictores, 
+                     y = y_respuesta, 
+                     sizes = 10:20, 
+                     rfeControl = control_rfe,
+                     metric = "Rsquared")
+
+# veamos las variables que eligió el modelo
+predictors(rfe_resultado)
+```
+
+Para las 17 variables elegidas, los resultados arrojaron que las más beneficiosas son: Gender, Wrist.Minimum.Girth, Elbows.diameter, Forearm.Girth, Chest.depth, Knee.Girth, Biacromial.diameter, Hip.Girth, Biiliac.diameter, Wrists.diameter, Knees.diameter, Chest.Girth, Waist.Girth, Bicep.Girth, Chest.diameter, Ankles.diameter y Bitrochanteric.diameter.
+
+Estas son las variables a añadir al modelo:
+
+```{r, warning=F, message=F}
+set.seed(21149)
+formula_rfe <- as.formula(paste("IMC ~", paste(predictors(rfe_resultado), collapse = "+")))
+modelo_imc <- lm(formula_rfe, data = muestra_final)
+summary(modelo_imc)
+```
+
+Los resultados de este análisis revelan un $R^2$ de 0.92 aproximadamente, que indica que el modelo explica el 91.5% de la variabilidad del IMC. O sea que casi toda la información necesaria para saber el IMC de una persona está contenida en las medidas de sus perímetros y diámetros. Además, el modelo posee un error de ~1.19, lo que indica que el modelo se equivoca, en promedio, en 1.19 puntos de IMC. Además, el modelo revela que Waist.Girth, Hip.Girth, Chest.Girth y Knee.Girth son aquellos que aportan más a la predicción de la variable IMC con proporcionalidad directa, mientras que Chest.depth, Biacromial.diameter y Biiliac.diameter poseen coeficientes negativos, por lo que son inversamente proporcionales al crecimiento del IMC. Por último, hay muchas variables como Gender, Wrists.diameter, Ankles.diameter con valores p altos, lo que significa que no son significativas para el modelo, pero en conjunto ayudan a reducir el error del modelo.
+
+
+### 5. Usando RFE, construir un modelo de regresión logística múltiple para la variable EN que incluya el conjunto de predictores, entre dos y seis, que entregue la mejor curva ROC y que utilice validación cruzada dejando uno fuera para evitar el sobreajuste (obviamente no se debe considerar las variables Peso, Estatura –Weight y Height respectivamente– ni IMC).
+
+Para esto, realizamos el siguiente procedimiento:
+```{r, warning=FALSE, message=FALSE}
+
+set.seed(21149)
+
+# Se definen predictores y respuesta
+# Se excluyen las variables base (Weight, Height) y derivadas directas (IMC), además de la respuesta (EN).
+variables_prohibidas_log <- c("Weight", "Height", "EN", "IMC")
+
+x_log <- muestra_final[, !(names(muestra_final) %in% variables_prohibidas_log)]
+y_log <- muestra_final$EN # Variable factor "sobrepeso"/"no sobrepeso"
+
+# Se define el control para RFE
+control_rfe_log <- rfeControl(functions = lrFuncs, 
+                              method = "LOOCV", 
+                              verbose = FALSE)
+
+# Se ejecuta RFE
+rfe_log_resultado <- rfe(x = x_log, 
+                         y = y_log, 
+                         sizes = 2:6, 
+                         rfeControl = control_rfe_log,
+                         metric = "ROC",
+                         trControl = trainControl(classProbs = TRUE, 
+                                                  summaryFunction = twoClassSummary))
+
+# Mostrar los predictores seleccionados
+print(predictors(rfe_log_resultado))
+
+# Modelo final
+vars_ganadoras <- predictors(rfe_log_resultado)
+formula_log_final <- as.formula(paste("EN ~", paste(vars_ganadoras, collapse = "+")))
+
+modelo_logistico_final <- glm(formula_log_final, 
+                              family = binomial(link = "logit"), 
+                              data = muestra_final)
+
+summary(modelo_logistico_final)
+
+```
+El modelo de regresión logística resultante, optimizado mediante RFE con validación cruzada dejando uno fuera (LOOCV), seleccionó un conjunto de 6 predictores. De estos, Thigh.Girth, Chest.Girth y Ankles.diameter resultaron ser estadísticamente significativos (p < 0.05), mostrando todos una correlación positiva con la probabilidad de sobrepeso.
+
+Cabe destacar la alta calidad del ajuste del modelo, evidenciada por la disminución sustancial de la devianza residual (19.31) en comparación con la devianza nula (138.63), lo que indica que el conjunto de variables antropométricas seleccionado es sumamente eficaz para distinguir entre las categorías de estado nutricional en esta muestra.
+
+
+### 6. Pronunciarse sobre la confiabilidad y el poder predictivo de los modelos obtenidos.
+
+Respecto a la confiabilidad, se puede decir que:
+
+Para la variable Peso, la aplicación de Bootstrapping con 100 repeticiones asegura que las métricas de error y los coeficientes no son producto del azar en una única división de datos, otorgando gran estabilidad estadística al modelo.
+
+En el caso del IMC, la Validación Cruzada Repetida (5 particiones, 5 repeticiones) utilizada durante la Eliminación Recursiva de Características (RFE) garantiza que la selección de las 17 variables predictoras es consistente y minimiza el riesgo de sobreajuste.
+
+Finalmente, para el Estado Nutricional (EN), el uso de LOOCV (Leave-One-Out Cross-Validation) permitió aprovechar al máximo el tamaño muestral para el entrenamiento, validando el modelo iterativamente con cada observación individual, lo cual es altamente confiable para detectar la capacidad de generalización en muestras de este tamaño.
+
+En cuanto al poder predictivo:
+
+El modelo de Peso alcanza un $R^2$ cercano a 0.98, explicando el 98% de la variabilidad de los datos con un error promedio (RMSE) de solo 2.31 kg, lo que demuestra una precisión excepcional.
+
+El modelo de IMC mantiene un alto estándar con un $R^2$ de 0.915 y un error residual de 1.19 puntos de IMC, confirmando que las medidas antropométricas seleccionadas contienen prácticamente toda la información necesaria para estimar este índice.
+
+
+El modelo logístico para el Estado Nutricional muestra un poder de clasificación contundente, evidenciado por la drástica reducción de la Devianza Residual (19.31) respecto a la Devianza Nula (138.63). Esta caída indica que el conjunto de predictores seleccionados (como el grosor del muslo y diámetro de tobillos) logra separar las clases "sobrepeso" y "no sobrepeso" con una eficacia muy alta dentro de la muestra estudiada.

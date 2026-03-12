@@ -1,0 +1,337 @@
+---
+title: "EP09"
+date: "2025-12-14"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=TRUE}
+library(dplyr)
+library(broom)
+library(scales)
+library(caret)
+library(car)
+library(lmtest)
+```
+
+## 1. Carga de Datos y Definición de Semilla
+```{r, warning=F}
+datos <- read.csv2("EP09 Datos.csv")
+
+set.seed(5623)
+```
+
+## 2. Selección de la Muestra
+Debemos seleccionar una muestra aleatoria de 100 hombres (Gender == 1).
+
+Posteriormente, dividimos esta muestra en dos subconjuntos para evitar el sobreajuste:
+
+1. Conjunto de Entrenamiento (70 casos): Para construir los modelos.
+
+2. Conjunto de Evaluación (30 casos): Para probar el poder predictivo en datos no vistos.
+
+```{r, warning=F}
+poblacion_hombres <- datos %>% filter(Gender == 1)
+
+indices_muestra <- sample(1:nrow(poblacion_hombres), 100)
+muestra <- poblacion_hombres[indices_muestra, ]
+
+# separar en entrenamiento (70) y evaluación (30)
+indices_entrenamiento <- sample(1:nrow(muestra), 70)
+
+datos_entrenamiento <- muestra[indices_entrenamiento, ]
+datos_evaluacion    <- muestra[-indices_entrenamiento, ]
+
+cat("Dimensiones del conjunto de entrenamiento:", dim(datos_entrenamiento))
+cat("Dimensiones del conjunto de evaluación:", dim(datos_evaluacion))
+```
+
+## 3. Selección Aleatoria de Predictores
+Para explorar la capacidad predictiva de diversas medidas sin sesgo inicial, seleccionamos aleatoriamente 8 variables del conjunto de datos disponible (excluyendo la variable respuesta Weight y la constante Gender).
+
+```{r, warning=F}
+vars_no_pred <- c("Weight", "Gender")
+pool_variables <- setdiff(colnames(datos_entrenamiento), vars_no_pred)
+
+predictores_aleatorios <- sample(pool_variables, 8)
+
+cat("Variables aleatorias seleccionadas:")
+print(predictores_aleatorios)
+```
+
+## 4. Selección Manual de Predictor y Justificación
+Criterio de Selección: Buscamos aquella variable que presente la mayor correlación absoluta con la variable Weight dentro del conjunto de entrenamiento. Una alta correlación lineal sugiere que la variable es un fuerte candidato para un modelo de Regresión Lineal Simple (RLS).
+
+```{r, warning=F}
+candidatas_manual <- setdiff(pool_variables, c(predictores_aleatorios, "Height"))
+
+correlaciones <- sapply(datos_entrenamiento[, candidatas_manual], 
+                        function(x) cor(x, datos_entrenamiento$Weight))
+
+variable_manual <- names(which.max(abs(correlaciones)))
+valor_correlacion <- round(max(abs(correlaciones)), 3)
+
+predictores_finales <- c(predictores_aleatorios, variable_manual)
+
+cat("Variable seleccionada:", variable_manual)
+```
+
+## 5. Modelo de Regresión Lineal Simple
+Utilizando el predictor seleccionado manualmente (Hip.Girth), construimos un modelo de Regresión Lineal Simple (RLS) para explicar el Peso.
+
+La ecuación del modelo es de la forma: 
+
+$$ Weight = \beta_0 + \beta_1 \cdot Hip.Girth + \epsilon $$
+
+```{r, warning=F}
+formula_rls <- as.formula(paste("Weight ~", variable_manual))
+
+modelo_rls <- lm(formula_rls, data = datos_entrenamiento)
+
+summary(modelo_rls)
+```
+
+## 6. Modelo de Regresión Lineal Múltiple
+Con el objetivo de obtener los predictores más relevantes para el modelo, se hará uso del método de regresión paso a paso (específicamente selección hacia adelante) con respecto a la muestra obtenida.
+
+Para el primer predictor:
+```{r, warning=F}
+modelo_actual <- modelo_rls
+
+formula_scope <- as.formula(paste("Weight ~", variable_manual, "+", 
+                                  paste(predictores_aleatorios, collapse = " + ")))
+
+modelo_completo_scope <- lm(formula_scope, data = datos_entrenamiento)
+
+tabla_paso1 <- add1(modelo_actual, scope = modelo_completo_scope, test = "F") %>%
+  tidy() %>%
+  mutate(p.value = format.pval(p.value, eps = .001, digits = 3)) %>%
+  arrange(AIC)
+
+cat("Evaluación de candidatos para el primer predictor adicional:")
+print(tabla_paso1)
+
+mejor_var_1 <- tabla_paso1 %>% 
+  filter(term != "<none>") %>% 
+  slice(1) %>% 
+  pull(term)
+
+cat("La variable seleccionada en este paso es:", mejor_var_1)
+
+modelo_paso1 <- update(modelo_actual, as.formula(paste(". ~ . +", mejor_var_1)))
+
+cat("Modelo actualizado con", mejor_var_1)
+print(formula(modelo_paso1))
+```
+
+Repetimos el procedimiento para encontrar una segunda variable que mejore el modelo ajustado anteriormente.
+
+```{r, warning=F}
+tabla_paso2 <- add1(modelo_paso1, scope = modelo_completo_scope, test = "F") %>%
+  tidy() %>%
+  mutate(p.value = format.pval(p.value, eps = .001, digits = 3)) %>%
+  arrange(AIC)
+
+cat("Evaluación de candidatos para el segundo predictor adicional:")
+print(tabla_paso2)
+
+mejor_var_2 <- tabla_paso2 %>% 
+  filter(term != "<none>") %>% 
+  slice(1) %>% 
+  pull(term)
+
+cat("La variable seleccionada en este paso es:", mejor_var_2)
+
+modelo_paso2 <- update(modelo_paso1, as.formula(paste(". ~ . +", mejor_var_2)))
+
+cat("Coeficientes para los predictores del modelo obtenido:")
+print(round(coef(modelo_paso2), 3))
+```
+
+El modelo incluye ahora tres predictores. Los coeficientes positivos indican que, manteniendo las demás variables constantes, un aumento en estas medidas corporales (diámetros o circunferencias) se asocia con un aumento en el peso total del individuo.
+
+Con este modelo de Regresión Lineal Múltiple definido, podemos proceder a las etapas de diagnóstico y evaluación predictiva.
+
+## 7. Evaluación de Bondad de Ajuste
+Una vez construido el modelo con los predictores seleccionados, es crucial evaluar si este se ajusta correctamente a los datos y si cumple con las condiciones teóricas de la regresión lineal.
+
+```{r, warning=F}
+comparacion <- anova(modelo_rls, modelo_paso2)
+
+cat("Prueba de bondad de ajuste (Comparación de modelos):")
+print(comparacion)
+```
+
+El p-valor significativo confirma que agregar los nuevos predictores mejora sustancialmente el ajuste del modelo en comparación con la regresión simple.
+
+#### Verificación de Condiciones
+
+**Para el RLS:**
+
+1. Multicolinealidad
+
+No aplica. Al tratarse de una Regresión Lineal Simple con un único predictor, no existe la posibilidad de correlación lineal entre variables independientes.
+
+2. Independencia de residuos
+
+Se asume por el diseño del estudio (muestreo aleatorio simple e individuos distintos).
+
+3. Normalidad de residuos
+
+```{r, warning=F}
+shapiro_rls <- shapiro.test(residuals(modelo_rls))
+print(shapiro_rls)
+```
+
+Dado que el p-valor es 0.3640007 < 0.05, se concluye la normalidad de los residuos.
+
+4. Homocedasticidad
+
+```{r, warning=F}
+# regresión auxiliar: residuos^2 ~ predichos
+residuos_rls_sq <- residuals(modelo_rls)^2
+aux_rls <- lm(residuos_rls_sq ~ fitted(modelo_rls))
+summary(aux_rls)
+```
+
+Dado que el p-valor es mayor a 0.05, no hay relación entre la varianza y la predicción (se cumple la homocedasticidad)
+
+**Para el RLM:** 
+
+1. Multicolinealidad
+
+```{r, warning=F}
+vars_modelo <- names(coef(modelo_paso2))[-1] # quitamos el intercepto
+
+cor_matrix <- cor(datos_entrenamiento[, vars_modelo])
+print(round(cor_matrix, 3))
+```
+
+Observamos las correlaciones entre pares de variables predictoras. Valores bajos sugieren que no hay multicolinealidad.
+
+2. Independencia de residuos
+
+Dado que el muestreo fue aleatorio simple y las observaciones corresponden a individuos distintos sin orden temporal ni espacial, asumimos independencia de las observaciones por diseño.
+
+3. Normalidad de residuos
+
+```{r, warning=F}
+shapiro_resultado <- shapiro.test(residuals(modelo_paso2))
+cat("Prueba de Shapiro-Wilk para normalidad:")
+print(shapiro_resultado)
+```
+
+Dado que el p-valor es 0.801 > 0.05, se concluye la normalidad de los residuos.
+
+4. Homeocedasticidad
+
+```{r, warning=F}
+residuos_cuadrado <- residuals(modelo_paso2)^2
+
+# hacemos una regresión auxiliar: residuos^2 ~ valores predichos
+modelo_auxiliar <- lm(residuos_cuadrado ~ fitted(modelo_paso2))
+
+summary(modelo_auxiliar)
+```
+
+Dado que el p-valor es mayor a 0.05, no hay relación entre la varianza y la predicción (se cumple la homocedasticidad)
+
+#### Detección y Tratamiento de Casos Influyentes
+
+Finalmente, analizamos la presencia de valores atípicos que puedan estar distorsionando los modelos.
+
+**Para RLS**
+
+```{r, warning=F}
+cooksd_rls <- cooks.distance(modelo_rls)
+umbral_cook <- 4 / nrow(datos_entrenamiento)
+influyentes_rls <- which(cooksd_rls > umbral_cook)
+
+cat("Influyentes en RLS:", paste(influyentes_rls, collapse = ", "))
+
+datos_clean_rls <- datos_entrenamiento[-influyentes_rls, ]
+modelo_rls_final <- update(modelo_rls, data = datos_clean_rls)
+
+cat("Normalidad RLS Final (p-value):", shapiro.test(residuals(modelo_rls_final))$p.value)
+```
+
+**Para RLM**
+
+```{r, warning=F}
+# calcular distancia de Cook
+cooksd <- cooks.distance(modelo_paso2)
+
+# definir umbral (4 / n)
+n_observaciones <- nrow(datos_entrenamiento)
+umbral_cook <- 4 / n_observaciones
+
+influyentes <- which(cooksd > umbral_cook)
+
+cat("Umbral de corte (Cook):", round(umbral_cook, 4))
+cat("Observaciones influyentes detectadas:", paste(influyentes, collapse = ", "))
+```
+
+Dado que se detectaron casos influyentes, procedemos a eliminarlos para reajustar el modelo y asegurar el cumplimiento de la normalidad.
+
+```{r, warning=F}
+datos_entrenamiento_clean <- datos_entrenamiento[-influyentes, ]
+
+# reajustar modelo
+modelo_corregido <- update(modelo_paso2, data = datos_entrenamiento_clean)
+
+print(summary(modelo_corregido))
+
+shapiro_test <- shapiro.test(residuals(modelo_corregido))
+cat("Prueba de Normalidad (Shapiro-Wilk) para residuos corregidos:")
+print(shapiro_test)
+```
+
+Tras eliminar los casos influyentes, el modelo muestra un excelente ajuste (R2 ajustado > 0.85) y, lo más importante, cumple con el supuesto de normalidad (Shapiro-Wilk p-value > 0.05). Este es el modelo final que utilizaremos.
+
+## 8. Evaluación del Poder Predictivo
+Finalmente, evaluamos el modelo corregido con los 30 datos reservados (test set).
+
+**Para RLS:**
+
+```{r, warning=F}
+pred_rls <- predict(modelo_rls_final, newdata = datos_evaluacion)
+
+rmse_rls <- sqrt(mean((datos_evaluacion$Weight - pred_rls)^2))
+mae_rls  <- mean(abs(datos_evaluacion$Weight - pred_rls))
+
+cat("RMSE:", round(rmse_rls, 3), "kg")
+cat("MAE :", round(mae_rls, 3), "kg")
+```
+
+El modelo simple presenta un Error Absoluto Medio (MAE) de aproximadamente 5.50 kg en datos nuevos. Esto significa que, al utilizar una única variable predictora, el modelo y erra en promedio por casi cinco kilos y medio en cada predicción.
+
+El RMSE es de 7.383 kg. Este valor, siendo considerablemente más alto que el del modelo múltiple, refleja la limitación natural de intentar explicar una variable compleja como el peso utilizando un solo rasgo anatómico. Aunque el modelo es estadísticamente válido, su precisión predictiva es limitada en comparación con un enfoque multivariable.
+
+**Para RLM:**
+
+```{r, warning=F}
+predicciones <- predict(modelo_corregido, newdata = datos_evaluacion)
+
+mse <- mean((datos_evaluacion$Weight - predicciones)^2)
+rmse <- sqrt(mse)
+mae <- mean(abs(datos_evaluacion$Weight - predicciones))
+
+cat("RMSE (Raíz del Error Cuadrático Medio):", round(rmse, 3), "kg")
+cat("MAE  (Error Absoluto Medio):", round(mae, 3), "kg")
+```
+
+El modelo presenta un Error Absoluto Medio (MAE) de aproximadamente 3.889 kg en datos nuevos. Considerando la variabilidad natural del peso humano, este margen de error es aceptable.
+
+El RMSE es de 5.02 kg. Si comparamos esto con el error estándar residual del entrenamiento (aprox. 3.5 kg), vemos un incremento en el error al usar datos nuevos. Esto es normal, y aunque existe cierta pérdida de precisión al generalizar, el modelo sigue siendo robusto y útil para estimar el peso basado en medidas anatómicas.
+
+### Conclusión Final y Comparación
+```{r, warning=F}
+mejora_rmse <- round((rmse_rls - rmse), 3)
+cat("Diferencia de error (RLS - RLM):", mejora_rmse, "kg")
+```
+
+Al contrastar ambos enfoques, la evidencia es clara:
+
+- Modelo Simple (RLS): RMSE de 7.383 kg.
+- Modelo Múltiple (RLM): RMSE de 5.02 kg.
+
+Si bien el modelo simple ofrece una aproximación rápida, es insuficiente para obtener predicciones precisas. La inclusión de predictores adicionales en el RLM no solo mejoró el ajuste teórico ($R^2$), sino que redujo drásticamente el error en situaciones reales (datos no vistos), justificando plenamente la complejidad adicional del modelo múltiple.

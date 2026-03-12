@@ -1,0 +1,184 @@
+---
+title: "EP10"
+output: html_document
+date: "2025-12-14"
+---
+
+```{r, echo=F, message=F}
+library(dplyr)
+library(car)
+```
+
+
+```{r, warning=F, message=F}
+datos <- read.csv2("EP09 Datos.csv")
+
+# El equipo crea la variable IMC (índice de masa corporal) como el peso de una persona (en kilogramos) dividida por el cuadrado de su estatura (en metros).
+
+# Si bien esta variable se usa para clasificar a las personas en varias clases de estado nutricional (bajo peso, normal, sobrepeso, obesidad, obesidad mórbida), para efectos de este ejercicio, usaremos dos clases: sobrepeso (IMC ≥ 23,2) y no sobrepeso (IMC < 23,2).
+
+# El equipo crea la variable dicotómica EN (estado nutricional) de acuerdo al valor de IMC de cada persona.
+
+datos <- datos %>%
+  mutate(
+    
+    Height_m = Height / 100,
+    
+    
+    IMC = Weight / (Height_m^2),
+    
+    
+    EN = ifelse(IMC >= 23.2, "sobrepeso", "no sobrepeso"),
+    
+    
+    EN = factor(EN)
+  )
+
+# 3. Verificar los resultados (mirar las primeras filas)
+head(datos[, c("Weight", "Height", "IMC", "EN")])
+
+#1.- Asegurando reproducibilidad, seleccionar una muestra de 150 mujeres (si su n° de equipo es un número par) o 150 hombres (si su n° de equipo es impar), asegurando que la mitad tenga estado nutricional “sobrepeso” y la otra mitad “no sobrepeso” en cada caso. Dividir esta muestra en dos conjuntos: los datos de 100 personas (50 con EN “sobrepeso”) para utilizar en la construcción de los modelos y 50 personas (25 con EN “sobrepeso”) para poder evaluarlos.
+
+datos_hombres <- datos %>% 
+  filter(Gender == 1)
+
+hombres_sobrepeso <- datos_hombres %>% filter(EN == "sobrepeso")
+hombres_no_sobrepeso <- datos_hombres %>% filter(EN == "no sobrepeso")
+
+set.seed(123) 
+
+idx_sobrepeso <- sample(1:nrow(hombres_sobrepeso), 75)
+idx_no_sobrepeso <- sample(1:nrow(hombres_no_sobrepeso), 75)
+
+
+muestra_sp <- hombres_sobrepeso[idx_sobrepeso, ]
+train_sp <- muestra_sp[1:50, ]      
+test_sp <- muestra_sp[51:75, ]      
+
+
+muestra_no_sp <- hombres_no_sobrepeso[idx_no_sobrepeso, ]
+train_no_sp <- muestra_no_sp[1:50, ] 
+test_no_sp <- muestra_no_sp[51:75, ] 
+
+
+datos_entrenamiento <- rbind(train_sp, train_no_sp)
+
+
+datos_prueba <- rbind(test_sp, test_no_sp)
+
+
+#2.- Variables anteriores usadas
+
+#"Shoulder.Girth", "Ankle.Minimum.Girth", "Chest.Girth", "Height", "Knees.diameter", "Hip.Girth", "Navel.Girth", "Biiliac.diameter"
+
+#3.- Variable usada para es "Waist.Girth" (Grosor a la altura de la cintura)
+
+#Para predecir el Estado Nutricional (EN), se seleccionó la variable 'Waist.Girth'. Esta elección se fundamenta en la literatura médica, específicamente en el reporte de la Organización Mundial de la Salud (2011), el cual establece que la circunferencia de cintura es un indicador altamente correlacionado con la acumulación de tejido adiposo y el IMC, aportando información crucial sobre la obesidad central.
+
+#Desde el punto de vista estadístico, se optó por esta medida en lugar del Peso (Weight). Aunque el Peso tiene una correlación obvia, su inclusión podría generar un problema de separación perfecta, dado que el IMC se calcula matemáticamente a partir del peso. Según la sección 15.5 del texto guía, la separación perfecta impide la convergencia del algoritmo de regresión logística, haciendo que los coeficientes tiendan a infinito. Por tanto, la cintura ofrece un equilibrio ideal entre poder predictivo biológico e independencia matemática.
+
+
+# 4.- Usando el entorno R, construir un modelo de regresión logística con el predictor seleccionado en el paso anterior y utilizando de la muestra obtenida.
+modelo <- glm(EN ~ Waist.Girth, family = binomial(link = "logit"), data = datos_entrenamiento)
+
+print(summary(modelo), signif.stars = FALSE)
+
+# Usando herramientas estándares^1 para la exploración de modelos del entorno R, buscar entre dos y cinco predictores de entre las variables seleccionadas al azar, recordadas en el punto 2, para agregar al modelo obtenido en el paso 4.
+
+
+
+vars_candidatas <- c("Shoulder.Girth", "Ankle.Minimum.Girth", "Chest.Girth", 
+                     "Height", "Knees.diameter", "Hip.Girth", 
+                     "Navel.Girth", "Biiliac.diameter")
+
+formula_maxima <- paste("EN ~ Waist.Girth +", paste(vars_candidatas, collapse = " + "))
+
+modelo_maximo <- glm(as.formula(formula_maxima), 
+                     family = binomial(link = "logit"), 
+                     data = datos_entrenamiento)
+
+modelo_final <- step(modelo, 
+                     scope = list(lower = modelo, upper = modelo_maximo), 
+                     direction = "forward", 
+                     trace = 0)
+
+cat("Modelo final seleccionado por el algoritmo step():")
+print(summary(modelo_final), signif.stars = FALSE)
+
+# 6.- Evaluar la confiabilidad y generalidad de los modelos (i.e. que tengan un buen nivel de ajuste, que cumplen las condiciones para RLogit y no están dominados por casos sobreinfluyentes) y “arreglarlos” en caso de que tengan algún problema.
+
+# colinealidad
+vif_valores <- vif(modelo_final)
+print(vif_valores)
+
+# para poder comparar los modelos con ANOVA, debemos asegurar que ambos utilicen el MISMO conjunto de datos.
+# por lo tanto, identificamos los casos influyentes en ambos modelos y los eliminamos del conjunto de entrenamiento común.
+
+# 1. Identificar influyentes en el modelo simple
+cooks_s <- cooks.distance(modelo)
+umbral_s <- 4 / (nrow(datos_entrenamiento) - length(coef(modelo)))
+influyentes_s <- which(cooks_s > umbral_s)
+
+# 2. Identificar influyentes en el modelo múltiple (obtenido con step)
+cooks_m <- cooks.distance(modelo_final)
+umbral_m <- 4 / (nrow(datos_entrenamiento) - length(coef(modelo_final)))
+influyentes_m <- which(cooks_m > umbral_m)
+
+# 3. Unir índices a eliminar (unión de ambos conjuntos de outliers)
+indices_a_eliminar <- union(influyentes_s, influyentes_m)
+
+if(length(indices_a_eliminar) > 0) {
+  cat(paste0("Se detectaron y eliminaron ", length(indices_a_eliminar), " observaciones influyentes en total para garantizar robustez y comparabilidad.\n"))
+  
+  # Crear conjunto de datos limpio común
+  datos_entrenamiento_clean <- datos_entrenamiento[-indices_a_eliminar, ]
+  
+  # Reajustar AMBOS modelos con los datos limpios
+  modelo_simple_final <- update(modelo, data = datos_entrenamiento_clean)
+  modelo_multiple_final <- update(modelo_final, data = datos_entrenamiento_clean)
+  
+} else {
+  cat("No se detectaron casos influyentes críticos. Se mantienen los modelos originales.\n")
+  modelo_simple_final <- modelo
+  modelo_multiple_final <- modelo_final
+  datos_entrenamiento_clean <- datos_entrenamiento
+}
+
+# Comparación de Bondad de Ajuste (ANOVA)
+print(anova(modelo_simple_final, modelo_multiple_final, test = "Chisq"))
+
+
+# 7.- Usando código estándar, evaluar el poder predictivo de los modelos con los datos de las 50 personas que no se incluyeron en su construcción en términos de sensibilidad y especificidad.
+
+calcular_metricas <- function(modelo_eval, datos_eval, nombre_set) {
+  probs <- predict(modelo_eval, newdata = datos_eval, type = "response")
+  preds_clase <- ifelse(probs >= 0.5, "sobrepeso", "no sobrepeso")
+  
+  tabla <- table(Predicho = preds_clase, Real = datos_eval$EN)
+  
+  TN <- if("no sobrepeso" %in% rownames(tabla) & "no sobrepeso" %in% colnames(tabla)) tabla["no sobrepeso", "no sobrepeso"] else 0
+  TP <- if("sobrepeso" %in% rownames(tabla) & "sobrepeso" %in% colnames(tabla)) tabla["sobrepeso", "sobrepeso"] else 0
+  FP <- if("sobrepeso" %in% rownames(tabla) & "no sobrepeso" %in% colnames(tabla)) tabla["sobrepeso", "no sobrepeso"] else 0
+  FN <- if("no sobrepeso" %in% rownames(tabla) & "sobrepeso" %in% colnames(tabla)) tabla["no sobrepeso", "sobrepeso"] else 0
+  
+  sensibilidad <- TP / (TP + FN)
+  especificidad <- TN / (TN + FP)
+  
+  return(c(Set = nombre_set, 
+           Sensibilidad = round(sensibilidad, 3), 
+           Especificidad = round(especificidad, 3)))
+}
+
+# Usamos 'datos_entrenamiento_clean' para evaluar el entrenamiento sin los outliers
+m1_train <- calcular_metricas(modelo_simple_final, datos_entrenamiento_clean, "Entrenamiento")
+m1_test <- calcular_metricas(modelo_simple_final, datos_prueba, "Prueba")
+
+m2_train <- calcular_metricas(modelo_multiple_final, datos_entrenamiento_clean, "Entrenamiento")
+m2_test <- calcular_metricas(modelo_multiple_final, datos_prueba, "Prueba")
+
+# resultados modelo simple
+print(rbind(m1_train, m1_test))
+
+# resultados modelo múltiple
+print(rbind(m2_train, m2_test))
+```
